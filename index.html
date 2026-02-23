@@ -13,11 +13,20 @@
     input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd; }
     button { padding: 10px 14px; border-radius: 10px; border: none; cursor: pointer; }
     .mt { margin-top: 12px; }
+    .muted { color:#666; font-size: 12px; }
+    .error { color:#b00020; }
   </style>
 </head>
 <body>
   <div class="card">
+    <!-- ログ表示は不要のためコメントアウト
     <div id="status" style="white-space:pre-wrap;font-family:monospace;"></div>
+    -->
+
+    <div id="loadingView">
+      <div>読み込み中…</div>
+      <div class="muted mt">しばらくお待ちください</div>
+    </div>
 
     <div id="memberView" style="display:none;">
       <h3>会員情報</h3>
@@ -37,7 +46,13 @@
         <input id="firstName" autocomplete="given-name" />
       </div>
       <button class="mt" id="saveBtn">登録する</button>
-      <div class="mt" id="regMsg"></div>
+      <div class="mt muted">※登録後は会員情報が表示されます</div>
+      <div class="mt error" id="regMsg"></div>
+    </div>
+
+    <div id="errorView" style="display:none;">
+      <div class="error">エラーが発生しました。</div>
+      <div class="mt muted" id="errMsg"></div>
     </div>
   </div>
 
@@ -45,74 +60,143 @@
 const LIFF_ID = '2009200776-bffw4Fd6';
 const GAS_URL = 'https://vqzc369jaa.execute-api.ap-northeast-1.amazonaws.com/member';
 
-function log(msg) {
-  const el = document.getElementById('status');
-  const now = new Date().toISOString().slice(11, 19); // HH:MM:SS
-  el.textContent += `[${now}] ${msg}\n`;
+// ログ出力は不要のためコメントアウト（必要になったら復活）
+// function log(msg) {
+//   const el = document.getElementById('status');
+//   const now = new Date().toISOString().slice(11, 19); // HH:MM:SS
+//   el.textContent += `[${now}] ${msg}\n`;
+// }
+
+function showOnly(viewId) {
+  const ids = ['loadingView', 'memberView', 'registerView', 'errorView'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (id === viewId) ? 'block' : 'none';
+  });
 }
 
 async function post(action, payload = {}) {
-  log('GASへ通信中…');
   const res = await fetch(GAS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    // NOTE: no-cors は使わない（JSON読めなくなる）
     body: JSON.stringify({ action, ...payload }),
   });
 
-  log(`GAS応答: HTTP ${res.status}`);
-  const text = await res.text();   // JSONでなくても表示できるように一旦textで受ける
-  log(`GAS応答本文(先頭300): ${text.slice(0,300)}`);
-
+  const text = await res.text();
   // JSONに変換できる場合だけ変換
   try { return JSON.parse(text); }
-  catch { throw new Error('GASがJSONを返していません'); }
-}
-
-async function init() {
-  try {
-    log('LIFF SDK 初期化中…');
-    await liff.init({ liffId: LIFF_ID });
-    log('LIFF初期化OK');
-
-    if (!liff.isLoggedIn()) {
-      log('未ログイン → loginへ');
-      liff.login();
-      return;
-    }
-
-    log('アクセストークン取得中…');
-    const accessToken = liff.getAccessToken();
-    if (!accessToken) throw new Error('accessTokenが取得できません');
-
-    log('会員情報取得中…');
-    const me = await post('me', { accessToken });
-    
-    log('meレスポンス全文: ' + JSON.stringify(me));
-    
-    if (!me.ok) {
-      throw new Error('GAS me が ok:false: ' + JSON.stringify(me));
-    }
-
-    log('会員情報取得OK');
-    // ここから先は既存の表示処理に戻してOK
-  } catch (e) {
-    log('初期化エラー詳細: ' + (e?.message || String(e)));
-    // 追加でオブジェクトも見せる
-    console.error(e);
-  }
+  catch { throw new Error('APIがJSONを返していません'); }
 }
 
 function showMember(member) {
-  document.getElementById('memberView').style.display = 'block';
+  showOnly('memberView');
   document.getElementById('name').textContent = `${member.lastName} ${member.firstName}`.trim() || '-';
   document.getElementById('point').textContent = member.point ?? 0;
   document.getElementById('rank').textContent = member.rank || '-';
 }
 
-init().catch(err => {
-  document.getElementById('status').textContent = '初期化エラー: ' + String(err);
+function showRegister() {
+  showOnly('registerView');
+  document.getElementById('regMsg').textContent = '';
+  document.getElementById('lastName').value = '';
+  document.getElementById('firstName').value = '';
+  // UX: 姓にフォーカス
+  setTimeout(() => document.getElementById('lastName').focus(), 50);
+}
+
+function showError(msg) {
+  showOnly('errorView');
+  document.getElementById('errMsg').textContent = msg || '不明なエラー';
+}
+
+async function init() {
+  try {
+    showOnly('loadingView');
+
+    await liff.init({ liffId: LIFF_ID });
+
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
+
+    const accessToken = liff.getAccessToken();
+    if (!accessToken) throw new Error('accessTokenが取得できません');
+
+    // 1) userIdを照合。なければサーバ側で登録され status:new が返る想定
+    const me = await post('me', { accessToken });
+
+    if (!me || me.ok !== true) {
+      throw new Error(me?.error ? `APIエラー: ${me.error}` : 'APIエラー');
+    }
+
+    // 2) 仕様:
+    // - lineidが存在しない場合（status:new）→ 登録後そのまま姓名入力画面
+    // - 存在する場合（status:existing）→ 会員情報表示
+    if (me.status === 'new') {
+      showRegister();
+      return;
+    }
+
+    // 既存会員：名前/ランク/ポイント表示
+    showMember(me.member);
+
+  } catch (e) {
+    console.error(e);
+    showError(e?.message || String(e));
+  }
+}
+
+// 初回登録ボタン処理
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  try {
+    const lastName = document.getElementById('lastName').value.trim();
+    const firstName = document.getElementById('firstName').value.trim();
+    const regMsg = document.getElementById('regMsg');
+
+    regMsg.textContent = '';
+    if (!lastName || !firstName) {
+      regMsg.textContent = '姓・名を入力してください。';
+      return;
+    }
+
+    // 二重送信防止
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = '登録中…';
+
+    const accessToken = liff.getAccessToken();
+    if (!accessToken) throw new Error('accessTokenが取得できません');
+
+    const saved = await post('registerName', { accessToken, lastName, firstName });
+
+    if (!saved || saved.ok !== true) {
+      regMsg.textContent = saved?.error ? `登録失敗: ${saved.error}` : '登録に失敗しました。';
+      btn.disabled = false;
+      btn.textContent = '登録する';
+      return;
+    }
+
+    // APIが member を返す実装ならそれを表示。返さない場合は再度 me を呼ぶ。
+    if (saved.member) {
+      showMember(saved.member);
+    } else {
+      const me = await post('me', { accessToken });
+      if (!me || me.ok !== true) throw new Error(me?.error ? `APIエラー: ${me.error}` : 'APIエラー');
+      showMember(me.member);
+    }
+
+  } catch (e) {
+    console.error(e);
+    document.getElementById('regMsg').textContent = e?.message || String(e);
+  } finally {
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = false;
+    btn.textContent = '登録する';
+  }
 });
+
+init();
 </script>
 </body>
 </html>
