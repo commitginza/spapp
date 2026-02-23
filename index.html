@@ -74,6 +74,7 @@
       font-size: 18px;
       line-height: 1.2;
       text-shadow: 0 2px 12px rgba(0,0,0,.18);
+      word-break: break-word;
     }
 
     .sub {
@@ -113,6 +114,7 @@
       justify-content: space-between;
       position: relative;
       z-index: 1;
+      gap: 10px;
     }
 
     .points {
@@ -120,6 +122,7 @@
       font-size: 22px;
       letter-spacing: .02em;
       text-shadow: 0 2px 12px rgba(0,0,0,.18);
+      white-space: nowrap;
     }
 
     .points small{
@@ -131,8 +134,33 @@
     }
 
     /* ===== Notice ===== */
+    .notice-section{
+      margin-top: 16px;
+    }
+
+    .section-head{
+      display:flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 2px 10px 2px;
+    }
+
+    .section-title{
+      margin: 0;
+      font-size: 16px;
+      font-weight: 900;
+      color:#111;
+    }
+
+    .section-sub{
+      margin: 0;
+      font-size: 12px;
+      color:#666;
+      white-space: nowrap;
+    }
+
     .notice-wrap{
-      margin-top: 14px;
       display: grid;
       gap: 10px;
     }
@@ -143,13 +171,14 @@
       border-radius: 16px;
       padding: 14px;
       box-shadow: 0 10px 24px rgba(0,0,0,.06);
+      overflow: hidden;
     }
 
+    /* 見た目崩れ対策：モバイルで折り返し/整列 */
     .notice-head{
-      display:flex;
-      align-items:flex-end;
-      justify-content: space-between;
-      gap: 10px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
     }
 
     .notice-title{
@@ -158,12 +187,13 @@
       margin: 0;
       color:#111;
       line-height: 1.25;
+      word-break: break-word;
     }
 
     .notice-meta{
       font-size: 12px;
       color:#666;
-      white-space: nowrap;
+      overflow-wrap: anywhere; /* 長い日時などでも崩れない */
     }
 
     .notice-body{
@@ -173,6 +203,10 @@
       line-height: 1.7;
       white-space: pre-wrap; /* 改行を反映 */
       word-break: break-word;
+      display: -webkit-box;          /* 3行で省略表示 */
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .notice-link{
@@ -237,7 +271,7 @@
     #loadingView { padding: 18px 6px; }
     #registerView { display:none; }
     #memberView { display:none; }
-    #noticeView { display:none; }
+    #noticeSection { display:none; }
     #errorView { display:none; }
   </style>
 </head>
@@ -263,12 +297,18 @@
 
         <div class="bottom">
           <div class="points" id="points">0P <small>POINTS</small></div>
-          <div class="muted" style="color:rgba(255,255,255,.92)">Football Assist</div>
+          <div class="muted" style="color:rgba(255,255,255,.92); white-space:nowrap;">Football Assist</div>
         </div>
       </div>
 
-      <!-- Notices -->
-      <div id="noticeView" class="notice-wrap"></div>
+      <!-- Notice Section -->
+      <div id="noticeSection" class="notice-section">
+        <div class="section-head">
+          <h3 class="section-title">お知らせ</h3>
+          <p class="section-sub">共通告知</p>
+        </div>
+        <div id="noticeView" class="notice-wrap"></div>
+      </div>
     </div>
 
     <!-- New member register -->
@@ -302,9 +342,7 @@ const LIFF_ID = '2009200776-bffw4Fd6';
 const API_URL = 'https://vqzc369jaa.execute-api.ap-northeast-1.amazonaws.com/member';
 
 // ログ出力は不要のためコメントアウト
-// function log(msg) {
-//   console.log(msg);
-// }
+// function log(msg) { console.log(msg); }
 
 function showOnly(viewId) {
   const ids = ['loadingView', 'memberView', 'registerView', 'errorView'];
@@ -327,7 +365,6 @@ async function post(action, payload = {}) {
 }
 
 function normalizeRank(rank) {
-  // デフォルトA5
   const r = (rank || '').toString().trim().toUpperCase();
   return ['A1','A2','A3','A4','A5'].includes(r) ? r : 'A5';
 }
@@ -393,16 +430,24 @@ function escapeHtml(str) {
     .replaceAll("'", '&#039;');
 }
 
+function safeUrl(url) {
+  const u = (url || '').toString().trim();
+  if (!u) return '';
+  if (u.startsWith('http://') || u.startsWith('https://')) return u;
+  return '';
+}
+
 function renderNotices(notices) {
+  const section = document.getElementById('noticeSection');
   const wrap = document.getElementById('noticeView');
   wrap.innerHTML = '';
 
   if (!Array.isArray(notices) || notices.length === 0) {
-    wrap.style.display = 'none';
+    section.style.display = 'none';
     return;
   }
 
-  wrap.style.display = 'grid';
+  section.style.display = 'block';
 
   // 最大3件表示（必要なら変更）
   const list = notices.slice(0, 3);
@@ -410,7 +455,7 @@ function renderNotices(notices) {
   list.forEach(n => {
     const title = escapeHtml(n.title || 'お知らせ');
     const body = escapeHtml(n.body || '');
-    const url = (n.url || '').toString().trim();
+    const url = safeUrl(n.url);
     const period = escapeHtml(fmtPeriod(n.startAt, n.endAt));
 
     const panel = document.createElement('div');
@@ -419,14 +464,27 @@ function renderNotices(notices) {
     panel.innerHTML = `
       <div class="notice-head">
         <h4 class="notice-title">${title}</h4>
-        <div class="notice-meta">${period}</div>
+        ${period ? `<div class="notice-meta">${period}</div>` : ``}
       </div>
-      <div class="notice-body">${body}</div>
+      ${body ? `<div class="notice-body">${body}</div>` : ``}
       ${url ? `<a class="notice-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">詳細を見る</a>` : ``}
     `;
 
     wrap.appendChild(panel);
   });
+}
+
+async function fetchAndRenderNotices(accessToken) {
+  try {
+    const noticeRes = await post('notices', { accessToken });
+    if (noticeRes && noticeRes.ok === true) {
+      renderNotices(noticeRes.notices || []);
+    } else {
+      renderNotices([]);
+    }
+  } catch (_) {
+    renderNotices([]);
+  }
 }
 
 async function init() {
@@ -443,7 +501,6 @@ async function init() {
     const accessToken = liff.getAccessToken();
     if (!accessToken) throw new Error('accessTokenが取得できません');
 
-    // 1) 会員情報
     const me = await post('me', { accessToken });
 
     if (!me || me.ok !== true) {
@@ -451,27 +508,13 @@ async function init() {
     }
 
     if (me.status === 'new') {
-      // 新規登録（lineid未登録）→ 登録後そのまま姓名入力
       showRegister();
       return;
     }
 
     showOnly('memberView');
     renderCard(me.member);
-
-    // 2) お知らせ（共通）
-    // Lambda側で action:"notices" を実装したら動きます
-    // 未実装の場合はエラーになるので握りつぶします（会員カード表示は継続）
-    try {
-      const noticeRes = await post('notices', { accessToken });
-      if (noticeRes && noticeRes.ok === true) {
-        renderNotices(noticeRes.notices || []);
-      } else {
-        renderNotices([]);
-      }
-    } catch (_) {
-      renderNotices([]);
-    }
+    await fetchAndRenderNotices(accessToken);
 
   } catch (e) {
     console.error(e);
@@ -507,7 +550,6 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
       return;
     }
 
-    // registerName が member を返す場合はそれを採用、無ければ me で再取得
     let member = saved.member;
     if (!member) {
       const me = await post('me', { accessToken });
@@ -517,18 +559,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
     showOnly('memberView');
     renderCard(member);
-
-    // 登録直後にもお知らせ取得（共通）
-    try {
-      const noticeRes = await post('notices', { accessToken });
-      if (noticeRes && noticeRes.ok === true) {
-        renderNotices(noticeRes.notices || []);
-      } else {
-        renderNotices([]);
-      }
-    } catch (_) {
-      renderNotices([]);
-    }
+    await fetchAndRenderNotices(accessToken);
 
   } catch (e) {
     console.error(e);
