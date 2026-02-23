@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>会員証</title>
+  <title>メンバーズカード</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body { font-family: system-ui, -apple-system, "Noto Sans JP", sans-serif; margin: 24px; }
@@ -45,54 +45,57 @@
 const LIFF_ID = '2009200776-bffw4Fd6';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx6OjVHZXcyTUXozTl0ZTlk94fTaGnlUWybm5pz9V6qVCX8HbpjvKlz6NVL4K_ODmfI/exec';
 
+function log(msg) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+}
+
 async function post(action, payload = {}) {
+  log('GASへ通信中…');
   const res = await fetch(GAS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    // NOTE: no-cors は使わない（JSON読めなくなる）
     body: JSON.stringify({ action, ...payload }),
   });
-  return await res.json();
+
+  log(`GAS応答: HTTP ${res.status}`);
+  const text = await res.text();   // JSONでなくても表示できるように一旦textで受ける
+  log(`GAS応答本文(先頭300): ${text.slice(0,300)}`);
+
+  // JSONに変換できる場合だけ変換
+  try { return JSON.parse(text); }
+  catch { throw new Error('GASがJSONを返していません'); }
 }
 
 async function init() {
-  await liff.init({ liffId: LIFF_ID });
+  try {
+    log('LIFF SDK 初期化中…');
+    await liff.init({ liffId: LIFF_ID });
+    log('LIFF初期化OK');
 
-  if (!liff.isLoggedIn()) {
-    liff.login();
-    return;
-  }
-
-  const accessToken = liff.getAccessToken();
-  const me = await post('me', { accessToken });
-
-  if (!me.ok) {
-    document.getElementById('status').textContent = 'エラー: ' + (me.error || 'unknown');
-    return;
-  }
-
-  document.getElementById('status').style.display = 'none';
-
-  if (me.status === 'new') {
-    document.getElementById('registerView').style.display = 'block';
-  } else {
-    showMember(me.member);
-  }
-
-  document.getElementById('saveBtn').addEventListener('click', async () => {
-    const lastName = document.getElementById('lastName').value.trim();
-    const firstName = document.getElementById('firstName').value.trim();
-    if (!lastName || !firstName) {
-      document.getElementById('regMsg').textContent = '姓・名を入力してください。';
+    if (!liff.isLoggedIn()) {
+      log('未ログイン → loginへ');
+      liff.login();
       return;
     }
-    const saved = await post('registerName', { accessToken, lastName, firstName });
-    if (!saved.ok) {
-      document.getElementById('regMsg').textContent = '登録失敗: ' + (saved.error || 'unknown');
-      return;
-    }
-    document.getElementById('registerView').style.display = 'none';
-    showMember(saved.member);
-  });
+
+    log('アクセストークン取得中…');
+    const accessToken = liff.getAccessToken();
+    if (!accessToken) throw new Error('accessTokenが取得できません');
+
+    log('会員情報取得中…');
+    const me = await post('me', { accessToken });
+
+    if (!me.ok) throw new Error('GAS me が ok:false: ' + (me.error || 'unknown'));
+
+    log('会員情報取得OK');
+    // ここから先は既存の表示処理に戻してOK
+  } catch (e) {
+    log('初期化エラー詳細: ' + (e?.message || String(e)));
+    // 追加でオブジェクトも見せる
+    console.error(e);
+  }
 }
 
 function showMember(member) {
