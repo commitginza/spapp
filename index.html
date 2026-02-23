@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>会員証</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, "Noto Sans JP", sans-serif; margin: 24px; }
+    .card { border: 1px solid #e5e5e5; border-radius: 14px; padding: 16px; max-width: 520px; }
+    .row { display:flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f2f2f2; }
+    .row:last-child { border-bottom: none; }
+    input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd; }
+    button { padding: 10px 14px; border-radius: 10px; border: none; cursor: pointer; }
+    .mt { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="status">読み込み中…</div>
+
+    <div id="memberView" style="display:none;">
+      <h3>会員情報</h3>
+      <div class="row"><div>氏名</div><div id="name"></div></div>
+      <div class="row"><div>ポイント</div><div id="point"></div></div>
+      <div class="row"><div>ランク</div><div id="rank"></div></div>
+    </div>
+
+    <div id="registerView" style="display:none;">
+      <h3>初回登録</h3>
+      <div class="mt">
+        <label>姓</label>
+        <input id="lastName" autocomplete="family-name" />
+      </div>
+      <div class="mt">
+        <label>名</label>
+        <input id="firstName" autocomplete="given-name" />
+      </div>
+      <button class="mt" id="saveBtn">登録する</button>
+      <div class="mt" id="regMsg"></div>
+    </div>
+  </div>
+
+<script>
+const LIFF_ID = 'YOUR_LIFF_ID';
+const GAS_URL = 'GAS_WEBAPP_URL';
+
+async function post(action, payload = {}) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  return await res.json();
+}
+
+async function init() {
+  await liff.init({ liffId: LIFF_ID });
+
+  if (!liff.isLoggedIn()) {
+    liff.login();
+    return;
+  }
+
+  const accessToken = liff.getAccessToken();
+  const me = await post('me', { accessToken });
+
+  if (!me.ok) {
+    document.getElementById('status').textContent = 'エラー: ' + (me.error || 'unknown');
+    return;
+  }
+
+  document.getElementById('status').style.display = 'none';
+
+  if (me.status === 'new') {
+    document.getElementById('registerView').style.display = 'block';
+  } else {
+    showMember(me.member);
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    const lastName = document.getElementById('lastName').value.trim();
+    const firstName = document.getElementById('firstName').value.trim();
+    if (!lastName || !firstName) {
+      document.getElementById('regMsg').textContent = '姓・名を入力してください。';
+      return;
+    }
+    const saved = await post('registerName', { accessToken, lastName, firstName });
+    if (!saved.ok) {
+      document.getElementById('regMsg').textContent = '登録失敗: ' + (saved.error || 'unknown');
+      return;
+    }
+    document.getElementById('registerView').style.display = 'none';
+    showMember(saved.member);
+  });
+}
+
+function showMember(member) {
+  document.getElementById('memberView').style.display = 'block';
+  document.getElementById('name').textContent = `${member.lastName} ${member.firstName}`.trim() || '-';
+  document.getElementById('point').textContent = member.point ?? 0;
+  document.getElementById('rank').textContent = member.rank || '-';
+}
+
+init().catch(err => {
+  document.getElementById('status').textContent = '初期化エラー: ' + String(err);
+});
+</script>
+</body>
+</html>
