@@ -17,7 +17,7 @@
 </head>
 <body>
   <div class="card">
-    <div id="status">読み込み中…</div>
+    <div id="status" style="white-space:pre-wrap;font-family:monospace;"></div>
 
     <div id="memberView" style="display:none;">
       <h3>会員情報</h3>
@@ -47,7 +47,8 @@ const GAS_URL = 'https://vqzc369jaa.execute-api.ap-northeast-1.amazonaws.com/mem
 
 function log(msg) {
   const el = document.getElementById('status');
-  el.textContent = msg;
+  const now = new Date().toISOString().slice(11, 19); // HH:MM:SS
+  el.textContent += `[${now}] ${msg}\n`;
 }
 
 async function post(action, payload = {}) {
@@ -86,8 +87,12 @@ async function init() {
 
     log('会員情報取得中…');
     const me = await post('me', { accessToken });
-
-    if (!me.ok) throw new Error('GAS me が ok:false: ' + (me.error || 'unknown'));
+    
+    log('meレスポンス全文: ' + JSON.stringify(me));
+    
+    if (!me.ok) {
+      throw new Error('GAS me が ok:false: ' + JSON.stringify(me));
+    }
 
     log('会員情報取得OK');
     // ここから先は既存の表示処理に戻してOK
