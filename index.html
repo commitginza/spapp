@@ -21,7 +21,7 @@
 
     .wrap { max-width: 520px; margin: 0 auto; }
 
-    /* ===== Card (Rank color) ===== */
+    /* ===== Member Card ===== */
     .member-card {
       position: relative;
       border-radius: var(--radius);
@@ -36,7 +36,6 @@
       gap: 10px;
     }
 
-    /* subtle highlight */
     .member-card::before{
       content:"";
       position:absolute;
@@ -46,11 +45,9 @@
       transform: rotate(18deg);
       background: rgba(255,255,255,.18);
       border-radius: 999px;
-      filter: blur(0px);
       pointer-events: none;
     }
 
-    /* subtle diagonal lines */
     .member-card::after{
       content:"";
       position:absolute;
@@ -133,6 +130,63 @@
       letter-spacing: .06em;
     }
 
+    /* ===== Notice ===== */
+    .notice-wrap{
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .notice-panel{
+      background: #fff;
+      border: 1px solid #e9e9ef;
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.06);
+    }
+
+    .notice-head{
+      display:flex;
+      align-items:flex-end;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .notice-title{
+      font-weight: 900;
+      font-size: 16px;
+      margin: 0;
+      color:#111;
+      line-height: 1.25;
+    }
+
+    .notice-meta{
+      font-size: 12px;
+      color:#666;
+      white-space: nowrap;
+    }
+
+    .notice-body{
+      margin-top: 10px;
+      color:#222;
+      font-size: 14px;
+      line-height: 1.7;
+      white-space: pre-wrap; /* 改行を反映 */
+      word-break: break-word;
+    }
+
+    .notice-link{
+      margin-top: 10px;
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .notice-link:active{ opacity:.75; }
+
     /* register UI */
     .panel {
       background: #fff;
@@ -141,6 +195,7 @@
       padding: 16px;
       box-shadow: 0 10px 24px rgba(0,0,0,.06);
     }
+
     label { font-size: 12px; color:#333; display:block; margin-bottom: 6px; }
     input {
       width: 100%;
@@ -174,7 +229,6 @@
     .rank-a2 { background: linear-gradient(135deg, #7c2d12 0%, #f97316 60%, #fdba74 100%); }
     .rank-a1 { background: linear-gradient(135deg, #7f1d1d 0%, #ef4444 60%, #fca5a5 100%); }
 
-    /* When bg becomes bright (A3) adjust overlays */
     .rank-a3 .rank-badge { background: rgba(255,255,255,.35); border-color: rgba(0,0,0,.10); }
     .rank-a3 .member-card::before{ background: rgba(255,255,255,.35); }
     .rank-a3 .member-card::after{ opacity:.18; }
@@ -183,6 +237,8 @@
     #loadingView { padding: 18px 6px; }
     #registerView { display:none; }
     #memberView { display:none; }
+    #noticeView { display:none; }
+    #errorView { display:none; }
   </style>
 </head>
 <body>
@@ -191,7 +247,7 @@
       <div class="muted">読み込み中…</div>
     </div>
 
-    <!-- Existing member card -->
+    <!-- Existing member card + notices -->
     <div id="memberView">
       <div id="card" class="member-card rank-a5">
         <div class="top">
@@ -210,6 +266,9 @@
           <div class="muted" style="color:rgba(255,255,255,.92)">Football Assist</div>
         </div>
       </div>
+
+      <!-- Notices -->
+      <div id="noticeView" class="notice-wrap"></div>
     </div>
 
     <!-- New member register -->
@@ -232,7 +291,7 @@
       <div id="regMsg" class="error"></div>
     </div>
 
-    <div id="errorView" class="panel" style="display:none;">
+    <div id="errorView" class="panel">
       <div class="error" style="margin-top:0;">エラーが発生しました</div>
       <div id="errMsg" class="muted" style="margin-top:8px;"></div>
     </div>
@@ -240,13 +299,11 @@
 
 <script>
 const LIFF_ID = '2009200776-bffw4Fd6';
-const GAS_URL = 'https://vqzc369jaa.execute-api.ap-northeast-1.amazonaws.com/member';
+const API_URL = 'https://vqzc369jaa.execute-api.ap-northeast-1.amazonaws.com/member';
 
 // ログ出力は不要のためコメントアウト
 // function log(msg) {
-//   const el = document.getElementById('status');
-//   const now = new Date().toISOString().slice(11, 19); // HH:MM:SS
-//   el.textContent += `[${now}] ${msg}\n`;
+//   console.log(msg);
 // }
 
 function showOnly(viewId) {
@@ -258,7 +315,7 @@ function showOnly(viewId) {
 }
 
 async function post(action, payload = {}) {
-  const res = await fetch(GAS_URL, {
+  const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, ...payload }),
@@ -297,11 +354,9 @@ function renderCard(member) {
   const rank = normalizeRank(member?.rank);
   const card = document.getElementById('card');
 
-  // rank color
   card.classList.remove('rank-a1','rank-a2','rank-a3','rank-a4','rank-a5');
   card.classList.add(rankClass(rank));
 
-  // texts
   document.getElementById('name').textContent = fullName;
   document.getElementById('rankBadge').textContent = rank;
   document.getElementById('points').textContent = `${pointNum}P`;
@@ -320,6 +375,60 @@ function showError(msg) {
   document.getElementById('errMsg').textContent = msg || '不明なエラー';
 }
 
+function fmtPeriod(startAt, endAt) {
+  const s = (startAt || '').toString().trim();
+  const e = (endAt || '').toString().trim();
+  if (!s && !e) return '';
+  if (s && e) return `${s} 〜 ${e}`;
+  if (s) return `${s} 〜`;
+  return `〜 ${e}`;
+}
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function renderNotices(notices) {
+  const wrap = document.getElementById('noticeView');
+  wrap.innerHTML = '';
+
+  if (!Array.isArray(notices) || notices.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display = 'grid';
+
+  // 最大3件表示（必要なら変更）
+  const list = notices.slice(0, 3);
+
+  list.forEach(n => {
+    const title = escapeHtml(n.title || 'お知らせ');
+    const body = escapeHtml(n.body || '');
+    const url = (n.url || '').toString().trim();
+    const period = escapeHtml(fmtPeriod(n.startAt, n.endAt));
+
+    const panel = document.createElement('div');
+    panel.className = 'notice-panel';
+
+    panel.innerHTML = `
+      <div class="notice-head">
+        <h4 class="notice-title">${title}</h4>
+        <div class="notice-meta">${period}</div>
+      </div>
+      <div class="notice-body">${body}</div>
+      ${url ? `<a class="notice-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">詳細を見る</a>` : ``}
+    `;
+
+    wrap.appendChild(panel);
+  });
+}
+
 async function init() {
   try {
     showOnly('loadingView');
@@ -334,21 +443,35 @@ async function init() {
     const accessToken = liff.getAccessToken();
     if (!accessToken) throw new Error('accessTokenが取得できません');
 
+    // 1) 会員情報
     const me = await post('me', { accessToken });
 
     if (!me || me.ok !== true) {
       throw new Error(me?.error ? `APIエラー: ${me.error}` : 'APIエラー');
     }
 
-    // - 新規登録（lineid未登録）→ そのまま姓名入力へ
-    // - 既存 → カード表示
     if (me.status === 'new') {
+      // 新規登録（lineid未登録）→ 登録後そのまま姓名入力
       showRegister();
       return;
     }
 
     showOnly('memberView');
     renderCard(me.member);
+
+    // 2) お知らせ（共通）
+    // Lambda側で action:"notices" を実装したら動きます
+    // 未実装の場合はエラーになるので握りつぶします（会員カード表示は継続）
+    try {
+      const noticeRes = await post('notices', { accessToken });
+      if (noticeRes && noticeRes.ok === true) {
+        renderNotices(noticeRes.notices || []);
+      } else {
+        renderNotices([]);
+      }
+    } catch (_) {
+      renderNotices([]);
+    }
 
   } catch (e) {
     console.error(e);
@@ -394,6 +517,18 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
     showOnly('memberView');
     renderCard(member);
+
+    // 登録直後にもお知らせ取得（共通）
+    try {
+      const noticeRes = await post('notices', { accessToken });
+      if (noticeRes && noticeRes.ok === true) {
+        renderNotices(noticeRes.notices || []);
+      } else {
+        renderNotices([]);
+      }
+    } catch (_) {
+      renderNotices([]);
+    }
 
   } catch (e) {
     console.error(e);
