@@ -257,15 +257,56 @@
     .error { color:#b00020; font-size: 13px; margin-top: 10px; }
 
     /* ===== Rank Colors ===== */
-    .rank-a5 { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #60a5fa 100%); }
-    .rank-a4 { background: linear-gradient(135deg, #14532d 0%, #16a34a 60%, #86efac 100%); }
-    .rank-a3 { background: linear-gradient(135deg, #854d0e 0%, #eab308 60%, #fde047 100%); color:#1b1b1b; }
-    .rank-a2 { background: linear-gradient(135deg, #7c2d12 0%, #f97316 60%, #fdba74 100%); }
-    .rank-a1 { background: linear-gradient(135deg, #7f1d1d 0%, #ef4444 60%, #fca5a5 100%); }
+/* ===== Rank Colors (Metallic Premium Design) ===== */
+    
+    /* A5: White (Platinum/Silver Pearl) */
+    .rank-a5 { 
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 45%, #dee2e6 50%, #e9ecef 55%, #f8f9fa 100%); 
+      color: #333 !important;
+    }
+    .rank-a5 .name, .rank-a5 .points { text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .rank-a5 .sub, .rank-a5 .muted { color: rgba(0,0,0,0.6) !important; }
+    .rank-a5 .rank-badge { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #333; }
 
-    .rank-a3 .rank-badge { background: rgba(255,255,255,.35); border-color: rgba(0,0,0,.10); }
-    .rank-a3 .member-card::before{ background: rgba(255,255,255,.35); }
-    .rank-a3 .member-card::after{ opacity:.18; }
+    /* A4: Bronze */
+    .rank-a4 { 
+      background: linear-gradient(135deg, #804a00 0%, #b08d57 45%, #ddc4a1 50%, #b08d57 55%, #804a00 100%); 
+    }
+
+    /* A3: Silver */
+    .rank-a3 { 
+      background: linear-gradient(135deg, #757575 0%, #9e9e9e 45%, #e8e8e8 50%, #9e9e9e 55%, #757575 100%); 
+    }
+
+    /* A2: Gold */
+    .rank-a2 { 
+      background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 45%, #b38728 50%, #fcf6ba 55%, #aa771c 100%); 
+      color: #5d4037 !important;
+    }
+    .rank-a2 .rank-badge { color: #5d4037; border-color: rgba(93,64,55,0.2); }
+    .rank-a2 .sub, .rank-a2 .muted { color: rgba(93,64,55,0.8) !important; }
+
+    /* A1: Black (Obsidian/Carbon) */
+    .rank-a1 { 
+      background: linear-gradient(135deg, #434343 0%, #000000 45%, #2c3e50 50%, #000000 55%, #434343 100%); 
+    }
+    .rank-a1 .rank-badge { border-color: rgba(255,255,255,0.4); box-shadow: 0 0 15px rgba(255,255,255,0.1); }
+
+    /* 共通の光沢仕上げ（オーバーレイ） */
+    .member-card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, 
+        transparent 20%, 
+        rgba(255,255,255,0.3) 45%, 
+        rgba(255,255,255,0.4) 50%, 
+        rgba(255,255,255,0.3) 55%, 
+        transparent 80%);
+      pointer-events: none;
+      mix-blend-mode: overlay;
+      z-index: 2;
+    }
 
     /* Views */
     #loadingView { padding: 18px 6px; }
