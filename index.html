@@ -36,7 +36,6 @@
       gap: 10px;
     }
 
-    /* (省略: 装飾用擬似要素などは以前のまま) */
     .member-card::before{ content:""; position:absolute; inset:-40% -40% auto auto; width: 260px; height: 260px; transform: rotate(18deg); background: rgba(255,255,255,.18); border-radius: 999px; pointer-events: none; }
     .member-card::after{ content:""; position:absolute; inset:0; background: linear-gradient(135deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 55%), repeating-linear-gradient(135deg, rgba(255,255,255,.10) 0 2px, rgba(255,255,255,0) 2px 10px); opacity:.22; pointer-events:none; mix-blend-mode: soft-light; }
 
@@ -63,12 +62,12 @@
     .notice-link{ margin-top: 10px; display:inline-flex; align-items:center; gap: 8px; font-size: 14px; font-weight: 800; color: #2563eb; text-decoration: none; }
     .notice-link:active{ opacity:.75; }
 
-    /* register UI - 修正箇所 */
+    /* register UI */
     .panel {
       background: #fff;
       border: 1px solid #e9e9ef;
       border-radius: 16px;
-      padding: 24px; /* 余白を少し広げました */
+      padding: 24px;
       box-shadow: 0 10px 24px rgba(0,0,0,.06);
     }
 
@@ -76,9 +75,9 @@
     
     input {
       width: 100%;
-      box-sizing: border-box; /* paddingを含めた幅計算 */
+      box-sizing: border-box;
       padding: 14px 16px;
-      border-radius: 10px; /* 角丸を抑えて「伸びすぎ」を解消 */
+      border-radius: 10px;
       border: 1px solid #d9d9e3;
       outline: none;
       font-size: 16px;
@@ -156,17 +155,14 @@
     <div id="registerView" class="panel">
       <h2 style="margin:0 0 8px 0; font-size: 20px;">初回登録</h2>
       <div class="muted" style="margin-bottom: 24px;">はじめに氏名をご入力ください。</div>
-
       <div style="margin-top:16px;">
         <label>姓</label>
         <input id="lastName" placeholder="例：山田" autocomplete="family-name" />
       </div>
-
       <div style="margin-top:16px;">
         <label>名</label>
         <input id="firstName" placeholder="例：太郎" autocomplete="given-name" />
       </div>
-
       <button id="saveBtn">登録する</button>
       <div id="regMsg" class="error"></div>
     </div>
@@ -178,7 +174,6 @@
   </div>
 
 <script>
-/* (スクリプト部分は以前の回答と同じため省略しますが、ロジックに変更はありません) */
 const LIFF_ID = '2009200776-bffw4Fd6';
 const API_URL = 'https://vqzc369jaa.execute-api.ap-northeast-1.amazonaws.com/member';
 
@@ -309,7 +304,15 @@ async function init() {
     if (!accessToken) throw new Error('accessTokenが取得できません');
     const me = await post('me', { accessToken });
     if (!me || me.ok !== true) throw new Error(me?.error ? `APIエラー: ${me.error}` : 'APIエラー');
-    if (me.status === 'new') { showRegister(); return; }
+
+    // --- 修正箇所：姓名が未設定の場合も登録画面を表示 ---
+    const hasName = (me.member?.lastName || '').trim() !== '' && (me.member?.firstName || '').trim() !== '';
+    if (me.status === 'new' || !hasName) {
+      showRegister();
+      return;
+    }
+    // ---------------------------------------------------
+
     showOnly('memberView');
     renderCard(me.member);
     await fetchAndRenderNotices(accessToken);
