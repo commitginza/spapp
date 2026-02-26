@@ -36,271 +36,87 @@
       gap: 10px;
     }
 
-    .member-card::before{
-      content:"";
-      position:absolute;
-      inset:-40% -40% auto auto;
-      width: 260px;
-      height: 260px;
-      transform: rotate(18deg);
-      background: rgba(255,255,255,.18);
-      border-radius: 999px;
-      pointer-events: none;
-    }
+    /* (省略: 装飾用擬似要素などは以前のまま) */
+    .member-card::before{ content:""; position:absolute; inset:-40% -40% auto auto; width: 260px; height: 260px; transform: rotate(18deg); background: rgba(255,255,255,.18); border-radius: 999px; pointer-events: none; }
+    .member-card::after{ content:""; position:absolute; inset:0; background: linear-gradient(135deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 55%), repeating-linear-gradient(135deg, rgba(255,255,255,.10) 0 2px, rgba(255,255,255,0) 2px 10px); opacity:.22; pointer-events:none; mix-blend-mode: soft-light; }
 
-    .member-card::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      background:
-        linear-gradient(135deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 55%),
-        repeating-linear-gradient(135deg, rgba(255,255,255,.10) 0 2px, rgba(255,255,255,0) 2px 10px);
-      opacity:.22;
-      pointer-events:none;
-      mix-blend-mode: soft-light;
-    }
-
-    .top {
-      display:flex;
-      align-items:flex-start;
-      justify-content: space-between;
-      position: relative;
-      z-index: 1;
-    }
-
-    .name {
-      font-weight: 800;
-      letter-spacing: .02em;
-      font-size: 18px;
-      line-height: 1.2;
-      text-shadow: 0 2px 12px rgba(0,0,0,.18);
-      word-break: break-word;
-    }
-
-    .sub {
-      font-size: 12px;
-      opacity: .92;
-      margin-top: 6px;
-    }
-
-    .center {
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      position: relative;
-      z-index: 1;
-    }
-
-    .rank-badge{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding: 16px 22px;
-      border-radius: 999px;
-      background: rgba(0,0,0,.18);
-      border: 1px solid rgba(255,255,255,.26);
-      backdrop-filter: blur(6px);
-      font-weight: 900;
-      letter-spacing: .08em;
-      font-size: 42px;
-      line-height: 1;
-      min-width: 150px;
-      text-shadow: 0 2px 18px rgba(0,0,0,.20);
-    }
-
-    .bottom {
-      display:flex;
-      align-items:flex-end;
-      justify-content: space-between;
-      position: relative;
-      z-index: 1;
-      gap: 10px;
-    }
-
-    .points {
-      font-weight: 900;
-      font-size: 22px;
-      letter-spacing: .02em;
-      text-shadow: 0 2px 12px rgba(0,0,0,.18);
-      white-space: nowrap;
-    }
-
-    .points small{
-      font-size: 12px;
-      opacity: .92;
-      margin-left: 6px;
-      font-weight: 700;
-      letter-spacing: .06em;
-    }
+    .top { display:flex; align-items:flex-start; justify-content: space-between; position: relative; z-index: 1; }
+    .name { font-weight: 800; letter-spacing: .02em; font-size: 18px; line-height: 1.2; text-shadow: 0 2px 12px rgba(0,0,0,.18); word-break: break-word; }
+    .sub { font-size: 12px; opacity: .92; margin-top: 6px; }
+    .center { display:flex; align-items:center; justify-content:center; position: relative; z-index: 1; }
+    .rank-badge{ display:inline-flex; align-items:center; justify-content:center; padding: 16px 22px; border-radius: 999px; background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.26); backdrop-filter: blur(6px); font-weight: 900; letter-spacing: .08em; font-size: 42px; line-height: 1; min-width: 150px; text-shadow: 0 2px 18px rgba(0,0,0,.20); }
+    .bottom { display:flex; align-items:flex-end; justify-content: space-between; position: relative; z-index: 1; gap: 10px; }
+    .points { font-weight: 900; font-size: 22px; letter-spacing: .02em; text-shadow: 0 2px 12px rgba(0,0,0,.18); white-space: nowrap; }
+    .points small{ font-size: 12px; opacity: .92; margin-left: 6px; font-weight: 700; letter-spacing: .06em; }
 
     /* ===== Notice ===== */
-    .notice-section{
-      margin-top: 16px;
-    }
-
-    .section-head{
-      display:flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 10px;
-      margin: 0 2px 10px 2px;
-    }
-
-    .section-title{
-      margin: 0;
-      font-size: 16px;
-      font-weight: 900;
-      color:#111;
-    }
-
-    .section-sub{
-      margin: 0;
-      font-size: 12px;
-      color:#666;
-      white-space: nowrap;
-    }
-
-    .notice-wrap{
-      display: grid;
-      gap: 10px;
-    }
-
-    .notice-panel{
-      background: #fff;
-      border: 1px solid #e9e9ef;
-      border-radius: 16px;
-      padding: 14px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.06);
-      overflow: hidden;
-    }
-
-    .notice-head{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-    }
-
-    .notice-title{
-      font-weight: 900;
-      font-size: 16px;
-      margin: 0;
-      color:#111;
-      line-height: 1.25;
-      word-break: break-word;
-    }
-
-    .notice-meta{
-      font-size: 12px;
-      color:#666;
-      overflow-wrap: anywhere;
-    }
-
-    .notice-body{
-      margin-top: 10px;
-      color:#222;
-      font-size: 14px;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      word-break: break-word;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    .notice-link{
-      margin-top: 10px;
-      display:inline-flex;
-      align-items:center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 800;
-      color: #2563eb;
-      text-decoration: none;
-    }
+    .notice-section{ margin-top: 16px; }
+    .section-head{ display:flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 2px 10px 2px; }
+    .section-title{ margin: 0; font-size: 16px; font-weight: 900; color:#111; }
+    .section-sub{ margin: 0; font-size: 12px; color:#666; white-space: nowrap; }
+    .notice-wrap{ display: grid; gap: 10px; }
+    .notice-panel{ background: #fff; border: 1px solid #e9e9ef; border-radius: 16px; padding: 14px; box-shadow: 0 10px 24px rgba(0,0,0,.06); overflow: hidden; }
+    .notice-head{ display:grid; grid-template-columns: 1fr; gap: 8px; }
+    .notice-title{ font-weight: 900; font-size: 16px; margin: 0; color:#111; line-height: 1.25; word-break: break-word; }
+    .notice-meta{ font-size: 12px; color:#666; overflow-wrap: anywhere; }
+    .notice-body{ margin-top: 10px; color:#222; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .notice-link{ margin-top: 10px; display:inline-flex; align-items:center; gap: 8px; font-size: 14px; font-weight: 800; color: #2563eb; text-decoration: none; }
     .notice-link:active{ opacity:.75; }
 
-    /* register UI */
+    /* register UI - 修正箇所 */
     .panel {
       background: #fff;
       border: 1px solid #e9e9ef;
       border-radius: 16px;
-      padding: 16px;
+      padding: 24px; /* 余白を少し広げました */
       box-shadow: 0 10px 24px rgba(0,0,0,.06);
     }
 
-    label { font-size: 12px; color:#333; display:block; margin-bottom: 6px; }
+    label { font-size: 13px; color:#333; display:block; margin-bottom: 8px; font-weight: bold; }
+    
     input {
       width: 100%;
-      padding: 12px 12px;
-      border-radius: 12px;
+      box-sizing: border-box; /* paddingを含めた幅計算 */
+      padding: 14px 16px;
+      border-radius: 10px; /* 角丸を抑えて「伸びすぎ」を解消 */
       border: 1px solid #d9d9e3;
       outline: none;
       font-size: 16px;
+      background: #fdfdfd;
+      transition: border-color 0.2s;
     }
+    input:focus { border-color: #111; }
+
     button {
       width: 100%;
-      padding: 12px 14px;
+      padding: 16px;
       border-radius: 12px;
       border: none;
       cursor: pointer;
-      margin-top: 12px;
+      margin-top: 20px;
       background: #111;
       color: #fff;
       font-weight: 800;
-      font-size: 15px;
+      font-size: 16px;
     }
     button:disabled{ opacity:.6; cursor: not-allowed; }
 
     .muted { color:#666; font-size: 12px; }
-    .error { color:#b00020; font-size: 13px; margin-top: 10px; }
+    .error { color:#b00020; font-size: 13px; margin-top: 12px; text-align: center; }
 
-    /* ===== Rank Colors (Metallic Premium Design) ===== */
-    
-    /* A4: Bronze (Starting Rank) */
-    .rank-a4 { 
-      background: linear-gradient(135deg, #804a00 0%, #b08d57 45%, #ddc4a1 50%, #b08d57 55%, #804a00 100%); 
-    }
-
-    /* A3: Silver */
-    .rank-a3 { 
-      background: linear-gradient(135deg, #757575 0%, #9e9e9e 45%, #e8e8e8 50%, #9e9e9e 55%, #757575 100%); 
-    }
-
-    /* A2: Gold */
-    .rank-a2 { 
-      background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 45%, #b38728 50%, #fcf6ba 55%, #aa771c 100%); 
-      color: #5d4037 !important;
-    }
+    /* ===== Rank Colors (Metallic) ===== */
+    .rank-a4 { background: linear-gradient(135deg, #804a00 0%, #b08d57 45%, #ddc4a1 50%, #b08d57 55%, #804a00 100%); }
+    .rank-a3 { background: linear-gradient(135deg, #757575 0%, #9e9e9e 45%, #e8e8e8 50%, #9e9e9e 55%, #757575 100%); }
+    .rank-a2 { background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 45%, #b38728 50%, #fcf6ba 55%, #aa771c 100%); color: #5d4037 !important; }
     .rank-a2 .rank-badge { color: #5d4037; border-color: rgba(93,64,55,0.2); }
     .rank-a2 .sub, .rank-a2 .muted { color: rgba(93,64,55,0.8) !important; }
-
-    /* A1: Black (Obsidian/Carbon) */
-    .rank-a1 { 
-      background: linear-gradient(135deg, #434343 0%, #000000 45%, #2c3e50 50%, #000000 55%, #434343 100%); 
-    }
+    .rank-a1 { background: linear-gradient(135deg, #434343 0%, #000000 45%, #2c3e50 50%, #000000 55%, #434343 100%); }
     .rank-a1 .rank-badge { border-color: rgba(255,255,255,0.4); box-shadow: 0 0 15px rgba(255,255,255,0.1); }
 
-    /* 共通の光沢仕上げ（オーバーレイ） */
-    .member-card::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(105deg, 
-        transparent 20%, 
-        rgba(255,255,255,0.3) 45%, 
-        rgba(255,255,255,0.4) 50%, 
-        rgba(255,255,255,0.3) 55%, 
-        transparent 80%);
-      pointer-events: none;
-      mix-blend-mode: overlay;
-      z-index: 2;
-    }
+    .member-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.3) 45%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.3) 55%, transparent 80%); pointer-events: none; mix-blend-mode: overlay; z-index: 2; }
 
-    /* Views */
     #loadingView { padding: 18px 6px; }
     #registerView { display:none; }
-    #registerView input {width:100%;}
     #memberView { display:none; }
     #noticeSection { display:none; }
     #errorView { display:none; }
@@ -320,36 +136,37 @@
             <div class="sub muted" style="color:rgba(255,255,255,.92)">Members Card</div>
           </div>
         </div>
-
         <div class="center">
           <div class="rank-badge" id="rankBadge">A4</div>
         </div>
-
         <div class="bottom">
           <div class="points" id="points">0P <small>POINTS</small></div>
           <div class="muted" style="color:rgba(255,255,255,.92); white-space:nowrap;">Football Assist</div>
         </div>
       </div>
-
       <div id="noticeSection" class="notice-section">
         <div class="section-head">
           <h3 class="section-title">お知らせ</h3>
+          <p class="section-sub">共通告知</p>
         </div>
         <div id="noticeView" class="notice-wrap"></div>
       </div>
     </div>
 
     <div id="registerView" class="panel">
-      <h3 style="margin:0 0 12px 0;">初回登録</h3>
-      <div class="muted">はじめに氏名をご入力ください。</div>
-      <div style="margin-top:12px;">
+      <h2 style="margin:0 0 8px 0; font-size: 20px;">初回登録</h2>
+      <div class="muted" style="margin-bottom: 24px;">はじめに氏名をご入力ください。</div>
+
+      <div style="margin-top:16px;">
         <label>姓</label>
-        <input id="lastName" autocomplete="family-name" />
+        <input id="lastName" placeholder="例：山田" autocomplete="family-name" />
       </div>
-      <div style="margin-top:12px;">
+
+      <div style="margin-top:16px;">
         <label>名</label>
-        <input id="firstName" autocomplete="given-name" />
+        <input id="firstName" placeholder="例：太郎" autocomplete="given-name" />
       </div>
+
       <button id="saveBtn">登録する</button>
       <div id="regMsg" class="error"></div>
     </div>
@@ -361,6 +178,7 @@
   </div>
 
 <script>
+/* (スクリプト部分は以前の回答と同じため省略しますが、ロジックに変更はありません) */
 const LIFF_ID = '2009200776-bffw4Fd6';
 const API_URL = 'https://vqzc369jaa.execute-api.ap-northeast-1.amazonaws.com/member';
 
@@ -385,7 +203,6 @@ async function post(action, payload = {}) {
 
 function normalizeRank(rank) {
   const r = (rank || '').toString().trim().toUpperCase();
-  // A5を削除し、デフォルトをA4に
   return ['A1','A2','A3','A4'].includes(r) ? r : 'A4';
 }
 
@@ -405,14 +222,10 @@ function renderCard(member) {
   const fullName = `${last} ${first}`.trim() || '-';
   const pointVal = (member?.point ?? 0);
   const pointNum = Number.isFinite(Number(pointVal)) ? Number(pointVal) : 0;
-
   const rank = normalizeRank(member?.rank);
   const card = document.getElementById('card');
-
-  // クラスリセット
   card.classList.remove('rank-a1','rank-a2','rank-a3','rank-a4');
   card.classList.add(rankClass(rank));
-
   document.getElementById('name').textContent = fullName;
   document.getElementById('rankBadge').textContent = rank;
   document.getElementById('points').textContent = `${pointNum}P`;
@@ -441,12 +254,7 @@ function fmtPeriod(startAt, endAt) {
 }
 
 function escapeHtml(str) {
-  return String(str ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
+  return String(str ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
 
 function safeUrl(url) {
@@ -489,29 +297,19 @@ async function fetchAndRenderNotices(accessToken) {
   try {
     const noticeRes = await post('notices', { accessToken });
     renderNotices(noticeRes?.ok === true ? (noticeRes.notices || []) : []);
-  } catch (_) {
-    renderNotices([]);
-  }
+  } catch (_) { renderNotices([]); }
 }
 
 async function init() {
   try {
     showOnly('loadingView');
     await liff.init({ liffId: LIFF_ID });
-    if (!liff.isLoggedIn()) {
-      liff.login();
-      return;
-    }
+    if (!liff.isLoggedIn()) { liff.login(); return; }
     const accessToken = liff.getAccessToken();
     if (!accessToken) throw new Error('accessTokenが取得できません');
     const me = await post('me', { accessToken });
-    if (!me || me.ok !== true) {
-      throw new Error(me?.error ? `APIエラー: ${me.error}` : 'APIエラー');
-    }
-    if (me.status === 'new') {
-      showRegister();
-      return;
-    }
+    if (!me || me.ok !== true) throw new Error(me?.error ? `APIエラー: ${me.error}` : 'APIエラー');
+    if (me.status === 'new') { showRegister(); return; }
     showOnly('memberView');
     renderCard(me.member);
     await fetchAndRenderNotices(accessToken);
