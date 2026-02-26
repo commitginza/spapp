@@ -174,7 +174,6 @@
       overflow: hidden;
     }
 
-    /* 見た目崩れ対策：モバイルで折り返し/整列 */
     .notice-head{
       display:grid;
       grid-template-columns: 1fr;
@@ -193,7 +192,7 @@
     .notice-meta{
       font-size: 12px;
       color:#666;
-      overflow-wrap: anywhere; /* 長い日時などでも崩れない */
+      overflow-wrap: anywhere;
     }
 
     .notice-body{
@@ -201,9 +200,9 @@
       color:#222;
       font-size: 14px;
       line-height: 1.7;
-      white-space: pre-wrap; /* 改行を反映 */
+      white-space: pre-wrap;
       word-break: break-word;
-      display: -webkit-box;          /* 3行で省略表示 */
+      display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
       overflow: hidden;
@@ -256,19 +255,9 @@
     .muted { color:#666; font-size: 12px; }
     .error { color:#b00020; font-size: 13px; margin-top: 10px; }
 
-    /* ===== Rank Colors ===== */
-/* ===== Rank Colors (Metallic Premium Design) ===== */
+    /* ===== Rank Colors (Metallic Premium Design) ===== */
     
-    /* A5: White (Platinum/Silver Pearl) */
-    .rank-a5 { 
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 45%, #dee2e6 50%, #e9ecef 55%, #f8f9fa 100%); 
-      color: #333 !important;
-    }
-    .rank-a5 .name, .rank-a5 .points { text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-    .rank-a5 .sub, .rank-a5 .muted { color: rgba(0,0,0,0.6) !important; }
-    .rank-a5 .rank-badge { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #333; }
-
-    /* A4: Bronze */
+    /* A4: Bronze (Starting Rank) */
     .rank-a4 { 
       background: linear-gradient(135deg, #804a00 0%, #b08d57 45%, #ddc4a1 50%, #b08d57 55%, #804a00 100%); 
     }
@@ -322,9 +311,8 @@
       <div class="muted">読み込み中…</div>
     </div>
 
-    <!-- Existing member card + notices -->
     <div id="memberView">
-      <div id="card" class="member-card rank-a5">
+      <div id="card" class="member-card rank-a4">
         <div class="top">
           <div>
             <div class="name" id="name">-</div>
@@ -333,7 +321,7 @@
         </div>
 
         <div class="center">
-          <div class="rank-badge" id="rankBadge">A5</div>
+          <div class="rank-badge" id="rankBadge">A4</div>
         </div>
 
         <div class="bottom">
@@ -342,7 +330,6 @@
         </div>
       </div>
 
-      <!-- Notice Section -->
       <div id="noticeSection" class="notice-section">
         <div class="section-head">
           <h3 class="section-title">お知らせ</h3>
@@ -352,22 +339,17 @@
       </div>
     </div>
 
-    <!-- New member register -->
     <div id="registerView" class="panel">
       <h3 style="margin:0 0 12px 0;">初回登録</h3>
-
       <div class="muted">はじめに氏名をご入力ください。</div>
-
       <div style="margin-top:12px;">
         <label>姓</label>
         <input id="lastName" autocomplete="family-name" />
       </div>
-
       <div style="margin-top:12px;">
         <label>名</label>
         <input id="firstName" autocomplete="given-name" />
       </div>
-
       <button id="saveBtn">登録する</button>
       <div id="regMsg" class="error"></div>
     </div>
@@ -381,9 +363,6 @@
 <script>
 const LIFF_ID = '2009200776-bffw4Fd6';
 const API_URL = 'https://vqzc369jaa.execute-api.ap-northeast-1.amazonaws.com/member';
-
-// ログ出力は不要のためコメントアウト
-// function log(msg) { console.log(msg); }
 
 function showOnly(viewId) {
   const ids = ['loadingView', 'memberView', 'registerView', 'errorView'];
@@ -399,7 +378,6 @@ async function post(action, payload = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, ...payload }),
   });
-
   const text = await res.text();
   try { return JSON.parse(text); }
   catch { throw new Error('APIがJSONを返していません'); }
@@ -407,7 +385,8 @@ async function post(action, payload = {}) {
 
 function normalizeRank(rank) {
   const r = (rank || '').toString().trim().toUpperCase();
-  return ['A1','A2','A3','A4','A5'].includes(r) ? r : 'A5';
+  // A5を削除し、デフォルトをA4に
+  return ['A1','A2','A3','A4'].includes(r) ? r : 'A4';
 }
 
 function rankClass(rank) {
@@ -415,9 +394,8 @@ function rankClass(rank) {
     case 'A1': return 'rank-a1';
     case 'A2': return 'rank-a2';
     case 'A3': return 'rank-a3';
-    case 'A4': return 'rank-a4';
-    case 'A5':
-    default:   return 'rank-a5';
+    case 'A4': 
+    default:   return 'rank-a4';
   }
 }
 
@@ -425,14 +403,14 @@ function renderCard(member) {
   const last = (member?.lastName || '').trim();
   const first = (member?.firstName || '').trim();
   const fullName = `${last} ${first}`.trim() || '-';
-
   const pointVal = (member?.point ?? 0);
   const pointNum = Number.isFinite(Number(pointVal)) ? Number(pointVal) : 0;
 
   const rank = normalizeRank(member?.rank);
   const card = document.getElementById('card');
 
-  card.classList.remove('rank-a1','rank-a2','rank-a3','rank-a4','rank-a5');
+  // クラスリセット
+  card.classList.remove('rank-a1','rank-a2','rank-a3','rank-a4');
   card.classList.add(rankClass(rank));
 
   document.getElementById('name').textContent = fullName;
@@ -482,26 +460,19 @@ function renderNotices(notices) {
   const section = document.getElementById('noticeSection');
   const wrap = document.getElementById('noticeView');
   wrap.innerHTML = '';
-
   if (!Array.isArray(notices) || notices.length === 0) {
     section.style.display = 'none';
     return;
   }
-
   section.style.display = 'block';
-
-  // 最大3件表示（必要なら変更）
   const list = notices.slice(0, 3);
-
   list.forEach(n => {
     const title = escapeHtml(n.title || 'お知らせ');
     const body = escapeHtml(n.body || '');
     const url = safeUrl(n.url);
     const period = escapeHtml(fmtPeriod(n.startAt, n.endAt));
-
     const panel = document.createElement('div');
     panel.className = 'notice-panel';
-
     panel.innerHTML = `
       <div class="notice-head">
         <h4 class="notice-title">${title}</h4>
@@ -510,7 +481,6 @@ function renderNotices(notices) {
       ${body ? `<div class="notice-body">${body}</div>` : ``}
       ${url ? `<a class="notice-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">詳細を見る</a>` : ``}
     `;
-
     wrap.appendChild(panel);
   });
 }
@@ -518,11 +488,7 @@ function renderNotices(notices) {
 async function fetchAndRenderNotices(accessToken) {
   try {
     const noticeRes = await post('notices', { accessToken });
-    if (noticeRes && noticeRes.ok === true) {
-      renderNotices(noticeRes.notices || []);
-    } else {
-      renderNotices([]);
-    }
+    renderNotices(noticeRes?.ok === true ? (noticeRes.notices || []) : []);
   } catch (_) {
     renderNotices([]);
   }
@@ -531,32 +497,24 @@ async function fetchAndRenderNotices(accessToken) {
 async function init() {
   try {
     showOnly('loadingView');
-
     await liff.init({ liffId: LIFF_ID });
-
     if (!liff.isLoggedIn()) {
       liff.login();
       return;
     }
-
     const accessToken = liff.getAccessToken();
     if (!accessToken) throw new Error('accessTokenが取得できません');
-
     const me = await post('me', { accessToken });
-
     if (!me || me.ok !== true) {
       throw new Error(me?.error ? `APIエラー: ${me.error}` : 'APIエラー');
     }
-
     if (me.status === 'new') {
       showRegister();
       return;
     }
-
     showOnly('memberView');
     renderCard(me.member);
     await fetchAndRenderNotices(accessToken);
-
   } catch (e) {
     console.error(e);
     showError(e?.message || String(e));
@@ -569,41 +527,30 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     const firstName = document.getElementById('firstName').value.trim();
     const regMsg = document.getElementById('regMsg');
     regMsg.textContent = '';
-
     if (!lastName || !firstName) {
       regMsg.textContent = '姓・名を入力してください。';
       return;
     }
-
     const btn = document.getElementById('saveBtn');
     btn.disabled = true;
     btn.textContent = '登録中…';
-
     const accessToken = liff.getAccessToken();
-    if (!accessToken) throw new Error('accessTokenが取得できません');
-
     const saved = await post('registerName', { accessToken, lastName, firstName });
-
     if (!saved || saved.ok !== true) {
       regMsg.textContent = saved?.error ? `登録失敗: ${saved.error}` : '登録に失敗しました。';
       btn.disabled = false;
       btn.textContent = '登録する';
       return;
     }
-
     let member = saved.member;
     if (!member) {
       const me = await post('me', { accessToken });
-      if (!me || me.ok !== true) throw new Error(me?.error ? `APIエラー: ${me.error}` : 'APIエラー');
       member = me.member;
     }
-
     showOnly('memberView');
     renderCard(member);
     await fetchAndRenderNotices(accessToken);
-
   } catch (e) {
-    console.error(e);
     document.getElementById('regMsg').textContent = e?.message || String(e);
   } finally {
     const btn = document.getElementById('saveBtn');
