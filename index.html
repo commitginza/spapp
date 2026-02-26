@@ -146,7 +146,6 @@
       <div id="noticeSection" class="notice-section">
         <div class="section-head">
           <h3 class="section-title">お知らせ</h3>
-          <p class="section-sub">共通告知</p>
         </div>
         <div id="noticeView" class="notice-wrap"></div>
       </div>
@@ -278,8 +277,8 @@ function renderNotices(notices) {
     panel.className = 'notice-panel';
     panel.innerHTML = `
       <div class="notice-head">
+        ${period ? `<div class="notice-meta">掲載期間: ${period}</div>` : ``}
         <h4 class="notice-title">${title}</h4>
-        ${period ? `<div class="notice-meta">${period}</div>` : ``}
       </div>
       ${body ? `<div class="notice-body">${body}</div>` : ``}
       ${url ? `<a class="notice-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">詳細を見る</a>` : ``}
