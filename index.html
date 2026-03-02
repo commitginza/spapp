@@ -104,7 +104,7 @@
     .error { color:#b00020; font-size: 13px; margin-top: 12px; text-align: center; }
 
     /* ===== Rank Colors (Metallic) ===== */
-    .rank-a4 { background: linear-gradient(135deg, #804a00 0%, #b08d57 45%, #ddc4a1 50%, #b08d57 55%, #804a00 100%); }
+    .rank-a4 { background: linear-gradient(135deg, #4d2c00 0%, #7a5230 45%, #a67c52 50%, #7a5230 55%, #4d2c00 100%); }
     .rank-a3 { background: linear-gradient(135deg, #757575 0%, #9e9e9e 45%, #e8e8e8 50%, #9e9e9e 55%, #757575 100%); }
     .rank-a2 { background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 45%, #b38728 50%, #fcf6ba 55%, #aa771c 100%); color: #5d4037 !important; }
     .rank-a2 .rank-badge { color: #5d4037; border-color: rgba(93,64,55,0.2); }
@@ -136,10 +136,10 @@
           </div>
         </div>
         <div class="center">
-          <div class="rank-badge" id="rankBadge">A4</div>
+          <div class="points" id="points">0 <small>P</small></div>
         </div>
         <div class="bottom">
-          <div class="points" id="points">0P <small>POINTS</small></div>
+          <div class="rank-badge" id="rankBadge" style="font-size: 24px; min-width: 80px; padding: 8px 16px;">A4</div>
           <div class="muted" style="color:rgba(255,255,255,.92); white-space:nowrap;">Football Assist</div>
         </div>
       </div>
@@ -216,13 +216,14 @@ function renderCard(member) {
   const fullName = `${last} ${first}`.trim() || '-';
   const pointVal = (member?.point ?? 0);
   const pointNum = Number.isFinite(Number(pointVal)) ? Number(pointVal) : 0;
+  const formattedPoints = pointNum.toLocaleString();
   const rank = normalizeRank(member?.rank);
   const card = document.getElementById('card');
   card.classList.remove('rank-a1','rank-a2','rank-a3','rank-a4');
   card.classList.add(rankClass(rank));
   document.getElementById('name').textContent = fullName;
   document.getElementById('rankBadge').textContent = rank;
-  document.getElementById('points').textContent = `${pointNum}P`;
+  document.getElementById('points').innerHTML = `${formattedPoints} <small>POINTS</small>`;
 }
 
 function showRegister() {
