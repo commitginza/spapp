@@ -43,10 +43,31 @@
     .name { font-weight: 800; letter-spacing: .02em; font-size: 18px; line-height: 1.2; text-shadow: 0 2px 12px rgba(0,0,0,.18); word-break: break-word; }
     .sub { font-size: 12px; opacity: .92; margin-top: 6px; }
     .center { display:flex; align-items:center; justify-content:center; position: relative; z-index: 1; }
-    .rank-badge{font-weight: 900; letter-spacing: .08em; font-size: 24px; line-height: 1; min-width: 150px; text-shadow: 0 2px 18px rgba(0,0,0,.20); }
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 14px; /* 余白を少し詰める */
+      border-radius: 999px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.26);
+      backdrop-filter: blur(6px);
+      font-weight: 900;
+      letter-spacing: .08em;
+      font-size: 20px; /* 24pxから縮小 */
+      line-height: 1;
+      min-width: auto; /* 幅固定を解除して左端に寄せる */
+      text-shadow: 0 2px 18px rgba(0,0,0,.20);
+    }
     .bottom { display:flex; align-items:flex-end; justify-content: space-between; position: relative; z-index: 1; gap: 10px; }
     .points { font-weight: 900; font-size: 36px; letter-spacing: .02em; text-shadow: 0 2px 12px rgba(0,0,0,.18); white-space: nowrap; }
-    .points small{ font-size: 16px; opacity: .92; margin-left: 6px; font-weight: 700; letter-spacing: .06em; }
+    .points small {
+      font-size: 13px; /* 16pxから縮小 */
+      opacity: .85;   /* ほんの少し透過を強めて馴染ませる */
+      margin-left: 6px;
+      font-weight: 700;
+      letter-spacing: .1em; /* 字間を少し広げて上品に */
+    }
 
     /* ===== Notice ===== */
     .notice-section{ margin-top: 16px; }
