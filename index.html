@@ -43,10 +43,10 @@
     .name { font-weight: 800; letter-spacing: .02em; font-size: 18px; line-height: 1.2; text-shadow: 0 2px 12px rgba(0,0,0,.18); word-break: break-word; }
     .sub { font-size: 12px; opacity: .92; margin-top: 6px; }
     .center { display:flex; align-items:center; justify-content:center; position: relative; z-index: 1; }
-    .rank-badge{ display:inline-flex; align-items:center; justify-content:center; padding: 16px 22px; border-radius: 999px; background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.26); backdrop-filter: blur(6px); font-weight: 900; letter-spacing: .08em; font-size: 24px; line-height: 1; min-width: 150px; text-shadow: 0 2px 18px rgba(0,0,0,.20); }
+    .rank-badge{ display:inline-flex; align-items:center; justify-content:center; font-weight: 900; letter-spacing: .08em; font-size: 24px; line-height: 1; min-width: 150px; text-shadow: 0 2px 18px rgba(0,0,0,.20); }
     .bottom { display:flex; align-items:flex-end; justify-content: space-between; position: relative; z-index: 1; gap: 10px; }
     .points { font-weight: 900; font-size: 36px; letter-spacing: .02em; text-shadow: 0 2px 12px rgba(0,0,0,.18); white-space: nowrap; }
-    .points small{ font-size: 12px; opacity: .92; margin-left: 6px; font-weight: 700; letter-spacing: .06em; }
+    .points small{ font-size: 24px; opacity: .92; margin-left: 6px; font-weight: 700; letter-spacing: .06em; }
 
     /* ===== Notice ===== */
     .notice-section{ margin-top: 16px; }
@@ -136,10 +136,10 @@
           </div>
         </div>
         <div class="center">
-          <div class="points" id="points">0 <small>P</small></div>
+          <div class="points" id="points">0 <small>POINTS</small></div>
         </div>
         <div class="bottom">
-          <div class="rank-badge" id="rankBadge" style="font-size: 24px; min-width: 80px; padding: 8px 16px;">A4</div>
+          <div class="rank-badge" id="rankBadge">A4</div>
           <div class="muted" style="color:rgba(255,255,255,.92); white-space:nowrap;">Football Assist</div>
         </div>
       </div>
@@ -223,7 +223,7 @@ function renderCard(member) {
   card.classList.add(rankClass(rank));
   document.getElementById('name').textContent = fullName;
   document.getElementById('rankBadge').textContent = rank;
-  document.getElementById('points').innerHTML = `${formattedPoints} <small>P</small>`;
+  document.getElementById('points').innerHTML = `${formattedPoints} <small>POINTS</small>`;
 }
 
 function showRegister() {
