@@ -140,22 +140,28 @@
     #memberView { display:none; }
     #noticeSection { display:none; }
     #errorView { display:none; }
-  /* loadingViewの中に配置するアニメーション */
-  .loader {
-    width: 24px;
-    height: 24px;
-    border: 3px solid #ddd;
-    border-top-color: #111;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 10px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+    /* loadingViewのスタイルを少し強化 */
+    #loadingView {
+      padding: 40px 6px;
+      text-align: center; /* 中央寄せ */
+    }
+    
+    .loader {
+      width: 32px;        /* 少し大きく */
+      height: 32px;
+      border: 3px solid rgba(0,0,0,.1); /* 背景側を薄く */
+      border-top-color: #111;           /* 回転する部分を濃く */
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite; /* 速度を少しアップ */
+      margin: 0 auto 16px; /* 下に余白 */
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div id="loadingView">
+    <div id="loadingView" style="text-align: center; padding-top: 50px;">
+      <div class="loader"></div>
       <div class="muted">読み込み中…</div>
     </div>
 
