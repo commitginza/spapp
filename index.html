@@ -140,6 +140,17 @@
     #memberView { display:none; }
     #noticeSection { display:none; }
     #errorView { display:none; }
+  /* loadingViewの中に配置するアニメーション */
+  .loader {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #ddd;
+    border-top-color: #111;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -205,15 +216,25 @@ function showOnly(viewId) {
   });
 }
 
-async function post(action, payload = {}) {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...payload }),
-  });
-  const text = await res.text();
-  try { return JSON.parse(text); }
-  catch { throw new Error('APIがJSONを返していません'); }
+async function post(action, payload = {}, retries = 1) {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 10000); // 10秒でタイムアウト
+
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...payload }),
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    
+    if (!res.ok) throw new Error(`サーバーエラー: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    if (retries > 0) return post(action, payload, retries - 1); // 1回だけ自動リトライ
+    throw err;
+  }
 }
 
 function normalizeRank(rank) {
@@ -319,27 +340,52 @@ async function fetchAndRenderNotices(accessToken) {
 async function init() {
   try {
     showOnly('loadingView');
+    
+    // 1. LIFF初期化
     await liff.init({ liffId: LIFF_ID });
-    if (!liff.isLoggedIn()) { liff.login(); return; }
-    const accessToken = liff.getAccessToken();
-    if (!accessToken) throw new Error('accessTokenが取得できません');
-    const me = await post('me', { accessToken });
-    if (!me || me.ok !== true) throw new Error(me?.error ? `APIエラー: ${me.error}` : 'APIエラー');
 
-    // --- 修正箇所：姓名が未設定の場合も登録画面を表示 ---
+    // 2. ログインチェック（ここが重要）
+    if (!liff.isLoggedIn()) {
+      // 外部ブラウザで開かれた場合も考慮し、
+      // 認証後に今のページに戻るようリダイレクトURIを指定
+      liff.login({ redirectUri: location.href }); 
+      return;
+    }
+
+    // 3. トークン取得
+    const accessToken = liff.getAccessToken();
+    if (!accessToken) {
+        // トークンが取れない場合は再ログインを促す
+        showError("認証情報の取得に失敗しました。再起動してください。");
+        return;
+    }
+
+    // 4. 会員情報取得
+    const me = await post('me', { accessToken });
+    
+    // API側で「アクセストークン無効」が返ってきた場合のハンドリング
+    if (me?.error === "invalid_token") {
+        liff.logout();
+        liff.login();
+        return;
+    }
+
+    if (!me || me.ok !== true) throw new Error(me?.error || '会員情報の取得に失敗しました');
+
+    // 姓名未設定チェック
     const hasName = (me.member?.lastName || '').trim() !== '' && (me.member?.firstName || '').trim() !== '';
     if (me.status === 'new' || !hasName) {
       showRegister();
       return;
     }
-    // ---------------------------------------------------
 
     showOnly('memberView');
     renderCard(me.member);
     await fetchAndRenderNotices(accessToken);
+
   } catch (e) {
     console.error(e);
-    showError(e?.message || String(e));
+    showError("通信エラーが発生しました。電波の良い場所で再度お試しください。");
   }
 }
 
