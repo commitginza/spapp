@@ -4,6 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
   <title>ASSIST FAMMILY</title>
+  
+  <script>
+    window.onerror = function(msg, url, line) {
+        alert("エラーが発生しました: " + msg + "\n行: " + line);
+    };
+  </script>
+
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     :root{
@@ -83,7 +90,6 @@
       box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
       margin-top: 20px;
     }
-    /* ガチャ実施済みの時のボタンスタイル */
     .btn-gacha:disabled {
       background: #9ca3af;
       box-shadow: none;
@@ -106,31 +112,21 @@
     .loader { width: 32px; height: 32px; border: 3px solid rgba(0,0,0,.1); border-top-color: #111; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    #loadingView, #registerView, #memberView, #errorView, #gachaView { display:none; }
+    /* 修正箇所: loadingViewは最初から表示させる */
+    #registerView, #memberView, #errorView, #gachaView { display:none; }
 
     /* ==========================================
        ガチャ用スタイル (全画面)
     ========================================== */
     #gachaView {
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #000 url('./fair_play_bg.jpg') no-repeat center bottom / cover;
-        z-index: 1000;
-        flex-direction: column;
-        align-items: center;
-        overflow: hidden;
+        z-index: 1000; flex-direction: column; align-items: center; overflow: hidden;
     }
     .gacha-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 0; }
-    
-    .gacha-header {
-        position: relative; z-index: 10; width: 100%; display: flex; justify-content: flex-end; padding: 15px; box-sizing: border-box;
-    }
-    .gacha-close {
-        background: rgba(0,0,0,0.6); color: white; border: 1px solid rgba(255,255,255,0.5); padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer;
-    }
-
+    .gacha-header { position: relative; z-index: 10; width: 100%; display: flex; justify-content: flex-end; padding: 15px; box-sizing: border-box; }
+    .gacha-close { background: rgba(0,0,0,0.6); color: white; border: 1px solid rgba(255,255,255,0.5); padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer; }
     .pk-area { position: relative; z-index: 5; flex-grow: 1; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 30px; }
-    
     .goal {
         position: absolute; bottom: 31%; width: 80%; max-width: 340px; height: 120px;
         border: 4px solid #fff; border-bottom: none;
@@ -138,22 +134,18 @@
                     repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(255,255,255,0.3) 10px, rgba(255,255,255,0.3) 12px);
         z-index: 1; transition: transform 0.1s;
     }
-
     .ball {
         position: absolute; bottom: 7%; width: 180px; height: 180px;
         background: url('./ball.png') no-repeat center / contain;
         filter: drop-shadow(0 10px 5px rgba(0,0,0,0.6)); z-index: 10;
         animation: float 2s infinite ease-in-out;
     }
-
     @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
     @keyframes chargeRumble { 0% { transform: translate(2px, 1px) rotate(0deg); } 25% { transform: translate(-2px, -1px) rotate(-1deg); } 50% { transform: translate(0px, 2px) rotate(1deg); } 75% { transform: translate(-1px, -2px) rotate(0deg); } 100% { transform: translate(1px, 0px) rotate(-1deg); } }
-    
     .ball.charging { animation: chargeRumble 0.1s infinite; filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.9)); }
     .ball.shoot-win { animation: none; transform: translate(0, -10vh) scale(0.2) rotate(1080deg); transition: transform 2s cubic-bezier(0.1, 0.7, 0.3, 1); }
     .ball.shoot-lose { animation: none; transform: translate(-38vw, -25vh) scale(0.25) rotate(720deg); transition: transform 2s cubic-bezier(0.1, 0.7, 0.3, 1); }
     .ball.shoot-lose-drop { transform: translate(-38vw, -10vh) scale(0.25) rotate(180deg); transition: transform 0.8s cubic-bezier(0.5, 0, 1, 1); }
-    
     .goal.shake { animation: netShake 0.4s ease-in-out; }
     @keyframes netShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px) scaleY(1.02); } 75% { transform: translateX(5px) scaleY(0.98); } }
 
@@ -176,7 +168,6 @@
     .result-text { font-size: 32px; font-weight: bold; margin-bottom: 10px; }
     .win-text { color: #dc2626; } .lose-text { color: #4b5563; }
     .point-text { font-size: 24px; color: #d97706; font-weight: bold; margin-bottom: 20px; }
-
   </style>
 </head>
 <body>
@@ -294,7 +285,6 @@ function renderCard(member) {
   document.getElementById('rankBadge').textContent = rank;
   document.getElementById('points').innerHTML = `${pointNum.toLocaleString()} <small>POINTS</small>`;
   
-  // ▼ ガチャボタンの制御（1人1回まで）
   const gachaBtn = document.getElementById('openGachaBtn');
   if (member?.hasPlayedGacha) {
       gachaBtn.disabled = true;
@@ -348,7 +338,10 @@ async function init() {
     showOnly('memberView');
     renderCard(me.member);
     await fetchAndRenderNotices(accessToken);
-  } catch (e) { console.error(e); showError("通信エラーが発生しました。"); }
+  } catch (e) { 
+    console.error(e); 
+    showError("通信エラーが発生しました: " + e.message); 
+  }
 }
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
@@ -372,9 +365,6 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     }
 });
 
-// ==========================================
-// ガチャ関連のロジック
-// ==========================================
 const ball = document.getElementById('ball');
 const goal = document.getElementById('goal');
 const shootBtn = document.getElementById('shootBtn');
@@ -383,7 +373,7 @@ const gachaResult = document.getElementById('gachaResult');
 
 function openGacha() {
     showOnly('gachaView');
-    ball.className = 'ball'; // アニメーション初期化
+    ball.className = 'ball'; 
     gachaModal.classList.remove('show');
     shootBtn.disabled = false;
     shootBtn.innerText = 'シュート！';
@@ -395,7 +385,7 @@ function closeGacha() {
 
 function closeGachaAndReload() {
     closeGacha();
-    init(); // リロードして最新ポイントと「実施済み」フラグを反映
+    init(); 
 }
 
 shootBtn.addEventListener('click', async () => {
@@ -409,18 +399,15 @@ shootBtn.addEventListener('click', async () => {
         const accessToken = liff.getAccessToken();
         const [apiRes] = await Promise.all([
             post('playGacha', { accessToken }), 
-            new Promise(resolve => setTimeout(resolve, 2000)) // 2秒のじらし演出
+            new Promise(resolve => setTimeout(resolve, 2000))
         ]);
 
-        // 万が一複数回実行されたなどのエラー判定
         if (apiRes && apiRes.ok === false && apiRes.error === 'already_played') {
             alert('すでにガチャに挑戦済みです。');
             closeGachaAndReload();
             return;
         }
 
-        // サーバーが isWin: true を返した場合のみ当たり
-        // (サーバー側で「当選上限5」を超えていたら強制的に isWin: false を返す想定)
         if (apiRes && apiRes.ok && apiRes.isWin) {
             isWin = true;
         }
@@ -459,6 +446,9 @@ shootBtn.addEventListener('click', async () => {
         }, 3000);
     }
 });
+
+// 初期化実行
+init();
 </script>
 </body>
 </html>
