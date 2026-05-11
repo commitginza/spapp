@@ -87,14 +87,23 @@
     .calendar-month{ background:#fff; border:1px solid #e9e9ef; border-radius:16px; padding:14px; box-shadow:0 10px 24px rgba(0,0,0,.06); }
     .calendar-grid{ display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; }
     .calendar-dow{ text-align:center; font-size:11px; color:#777; font-weight:800; padding:3px 0; }
-    .calendar-day{ min-height:56px; border-radius:10px; background:#f7f7fa; padding:5px 4px; box-sizing:border-box; overflow:hidden; }
-    .calendar-day.empty{ background:transparent; }
+    .calendar-day{ min-height:62px; border-radius:10px; background:#f7f7fa; padding:5px 4px; box-sizing:border-box; overflow:hidden; border:1px solid transparent; }
+    .calendar-day.empty{ background:transparent; border-color:transparent; }
     .calendar-day.today{ outline:2px solid #111; background:#fff; }
+    .calendar-day.has-events{ background:#fff; border-color:#e4e4ec; cursor:pointer; }
+    .calendar-day.has-events:active{ transform: translateY(1px); background:#f4f4f8; }
     .calendar-date{ font-size:11px; font-weight:900; color:#222; line-height:1; }
-    .calendar-event{ margin-top:4px; padding:3px 4px; border-radius:7px; background:#111; color:#fff; font-size:10px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
-    .calendar-event:active{ opacity:.75; }
-    .calendar-more{ margin-top:3px; font-size:10px; color:#666; line-height:1; }
+    .calendar-event{ margin-top:4px; padding:3px 4px; border-radius:7px; background:var(--event-color, #111); color:var(--event-text-color, #fff); font-size:10px; font-weight:800; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }
+    .calendar-more{ margin-top:3px; font-size:10px; color:#666; line-height:1; font-weight:800; }
     .calendar-empty-text{ color:#777; font-size:12px; padding:8px 2px 0; }
+    .day-event-list{ display:grid; gap:10px; margin-top:4px; }
+    .day-event-item{ width:100%; appearance:none; border:1px solid #e7e7ef; background:#fff; border-radius:14px; padding:12px; text-align:left; cursor:pointer; box-shadow:0 8px 18px rgba(0,0,0,.05); }
+    .day-event-item:active{ transform: translateY(1px); background:#f7f7fa; }
+    .day-event-title-row{ display:flex; align-items:center; gap:8px; }
+    .day-event-color{ width:12px; height:12px; border-radius:999px; flex:0 0 auto; background:var(--event-color, #111); border:1px solid rgba(0,0,0,.08); }
+    .day-event-title{ color:#111; font-size:14px; font-weight:900; line-height:1.35; }
+    .day-event-meta{ margin-top:6px; color:#666; font-size:12px; line-height:1.5; }
+    .day-event-label{ display:inline-flex; align-items:center; margin-top:8px; padding:3px 8px; border-radius:999px; background:var(--event-color, #111); color:var(--event-text-color, #fff); font-size:11px; font-weight:900; line-height:1.2; }
 
     /* ===== Common modal for notice/calendar ===== */
     .app-modal{ position:fixed; inset:0; z-index:1500; display:flex; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; opacity:0; visibility:hidden; transition:.2s; }
@@ -370,11 +379,18 @@ function fmtPeriod(s, e) { if (!s && !e) return ''; if (s && e) return `${s} 〜
 function escapeHtml(str) { return String(str ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;'); }
 function safeUrl(u) { if (!u) return ''; if (u.startsWith('http://') || u.startsWith('https://')) return u; return ''; }
 
-function showAppModal({ title = '', meta = '', body = '', url = '' } = {}) {
+function showAppModal({ title = '', meta = '', body = '', bodyNode = null, url = '' } = {}) {
   const modal = document.getElementById('appModal');
+  const bodyEl = document.getElementById('appModalBody');
   document.getElementById('appModalTitle').textContent = title || '';
   document.getElementById('appModalMeta').textContent = meta || '';
-  document.getElementById('appModalBody').textContent = body || '';
+
+  bodyEl.innerHTML = '';
+  if (bodyNode instanceof Node) {
+    bodyEl.appendChild(bodyNode);
+  } else {
+    bodyEl.textContent = body || '';
+  }
 
   const link = document.getElementById('appModalLink');
   const href = safeUrl(url || '');
@@ -464,6 +480,12 @@ async function fetchAndRenderNotices(accessToken) {
 }
 
 const CALENDAR_MONTH_COUNT = 3;
+const CALENDAR_COLOR_MAP = {
+  'スペリオ': '#8dcdce',
+  'レディース': '#fe88d2',
+  'イベント': '#ff0000',
+  'ご飯会': '#ae0be1'
+};
 let calendarEventsCache = [];
 let calendarMonthOffset = 0;
 
@@ -471,6 +493,33 @@ function pad2(n) { return String(n).padStart(2, '0'); }
 function ymd(date) { return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`; }
 function monthLabel(date) { return `${date.getFullYear()}年${date.getMonth() + 1}月`; }
 function clampCalendarOffset(offset) { return Math.max(0, Math.min(CALENDAR_MONTH_COUNT - 1, offset)); }
+function isValidHexColor(value) { return /^#[0-9a-fA-F]{6}$/.test(String(value || '').trim()); }
+function getEventColorLabel(event) { return String(event?.colorLabel || event?.colorType || event?.category || '').trim(); }
+function getEventColor(event) {
+  const direct = String(event?.color || '').trim();
+  if (isValidHexColor(direct)) return direct.toLowerCase();
+  return CALENDAR_COLOR_MAP[getEventColorLabel(event)] || '#111111';
+}
+function getTextColorForBg(hex) {
+  const c = isValidHexColor(hex) ? hex.replace('#', '') : '111111';
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.62 ? '#111111' : '#ffffff';
+}
+function eventColorStyle(event) {
+  const bg = getEventColor(event);
+  const fg = getTextColorForBg(bg);
+  return `--event-color:${bg};--event-text-color:${fg};`;
+}
+function ymdLabel(key) {
+  const parts = String(key || '').split('-').map(Number);
+  if (parts.length !== 3 || parts.some(n => !Number.isFinite(n))) return key || '';
+  const date = new Date(parts[0], parts[1] - 1, parts[2]);
+  const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+  return `${parts[0]}年${parts[1]}月${parts[2]}日（${weekDays[date.getDay()]}）`;
+}
 
 function parseDateOnly(value) {
   const s = String(value || '').trim();
@@ -515,12 +564,71 @@ function openCalendarEvent(event) {
   const period = formatEventPeriod(event);
   if (period) meta.push(`日時: ${period}`);
   if (event.place) meta.push(`場所: ${event.place}`);
+  const label = getEventColorLabel(event);
+  if (label) meta.push(`区分: ${label}`);
 
   showAppModal({
     title: event.title || '予定',
     meta: meta.join('\n'),
     body: event.detail || '詳細情報はありません。',
     url: event.url || ''
+  });
+}
+
+function openCalendarDayList(dayKey, dayEvents) {
+  const list = document.createElement('div');
+  list.className = 'day-event-list';
+
+  const safeDayEvents = Array.isArray(dayEvents) ? dayEvents : [];
+
+  safeDayEvents.forEach(({ event }) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'day-event-item';
+    item.style.cssText = eventColorStyle(event);
+
+    const row = document.createElement('div');
+    row.className = 'day-event-title-row';
+
+    const dot = document.createElement('span');
+    dot.className = 'day-event-color';
+
+    const title = document.createElement('span');
+    title.className = 'day-event-title';
+    title.textContent = event?.title || '予定';
+
+    row.appendChild(dot);
+    row.appendChild(title);
+    item.appendChild(row);
+
+    const metaTexts = [];
+    const period = formatEventPeriod(event);
+    if (period) metaTexts.push(period);
+    if (event?.place) metaTexts.push(event.place);
+
+    if (metaTexts.length) {
+      const meta = document.createElement('div');
+      meta.className = 'day-event-meta';
+      meta.textContent = metaTexts.join(' / ');
+      item.appendChild(meta);
+    }
+
+    const label = getEventColorLabel(event);
+    if (label) {
+      const badge = document.createElement('span');
+      badge.className = 'day-event-label';
+      badge.textContent = label;
+      item.appendChild(badge);
+    }
+
+    item.addEventListener('click', () => openCalendarEvent(event));
+    list.appendChild(item);
+  });
+
+  showAppModal({
+    title: `${ymdLabel(dayKey)}の予定`,
+    meta: `${safeDayEvents.length}件`,
+    bodyNode: list
   });
 }
 
@@ -569,14 +677,17 @@ function renderCalendar(events) {
     const dayEvents = eventsByDate.get(key) || [];
     monthEventCount += dayEvents.length;
     const isToday = key === ymd(today);
-    const eventChips = dayEvents.slice(0, 2).map(({ event, index }) => {
+    const hasEvents = dayEvents.length > 0;
+
+    const eventChips = dayEvents.slice(0, 2).map(({ event }) => {
       const time = event.startTime ? `${escapeHtml(event.startTime)} ` : '';
-      return `<div class="calendar-event" role="button" tabindex="0" data-event-index="${index}">${time}${escapeHtml(event.title || '予定')}</div>`;
+      return `<div class="calendar-event" style="${eventColorStyle(event)}">${time}${escapeHtml(event.title || '予定')}</div>`;
     }).join('');
-    const more = dayEvents.length > 2 ? `<div class="calendar-more">+${dayEvents.length - 2}件</div>` : '';
+    const more = dayEvents.length > 2 ? `<div class="calendar-more">+${dayEvents.length - 2}件：タップして一覧</div>` : '';
 
     cells.push(`
-      <div class="calendar-day ${isToday ? 'today' : ''}">
+      <div class="calendar-day ${isToday ? 'today' : ''} ${hasEvents ? 'has-events' : ''}"
+           ${hasEvents ? `role="button" tabindex="0" data-day-key="${key}" aria-label="${ymdLabel(key)}の予定 ${dayEvents.length}件"` : ''}>
         <div class="calendar-date">${day}</div>
         ${eventChips}${more}
       </div>
@@ -595,10 +706,11 @@ function renderCalendar(events) {
     wrap.appendChild(empty);
   }
 
-  wrap.querySelectorAll('.calendar-event').forEach(el => {
+  wrap.querySelectorAll('.calendar-day.has-events').forEach(el => {
     const open = () => {
-      const index = Number(el.dataset.eventIndex);
-      if (Number.isInteger(index) && safeEvents[index]) openCalendarEvent(safeEvents[index]);
+      const key = el.dataset.dayKey;
+      const dayEvents = eventsByDate.get(key) || [];
+      if (dayEvents.length > 0) openCalendarDayList(key, dayEvents);
     };
     makeClickable(el, open);
   });
