@@ -78,10 +78,13 @@
 
     /* ===== Calendar ===== */
     .calendar-section{ margin-top: 16px; }
-    .calendar-range{ color:#666; font-size: 12px; white-space: nowrap; }
-    .calendar-wrap{ display:grid; gap: 12px; }
+    .calendar-nav{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 0 0 10px; background:#fff; border:1px solid #e9e9ef; border-radius:16px; padding:10px 12px; box-shadow:0 10px 24px rgba(0,0,0,.06); }
+    .calendar-range{ color:#111; font-size: 15px; font-weight:900; text-align:center; flex:1; white-space: nowrap; }
+    .calendar-nav-btn{ appearance:none; border:none; background:#111; color:#fff; width:38px; height:34px; border-radius:999px; font-size:18px; font-weight:900; line-height:1; cursor:pointer; }
+    .calendar-nav-btn:disabled{ background:#d6d6de; color:#777; cursor:not-allowed; }
+    .calendar-nav-btn:not(:disabled):active{ transform: translateY(1px); opacity:.82; }
+    .calendar-wrap{ display:grid; gap: 10px; }
     .calendar-month{ background:#fff; border:1px solid #e9e9ef; border-radius:16px; padding:14px; box-shadow:0 10px 24px rgba(0,0,0,.06); }
-    .calendar-month-title{ margin:0 0 10px; font-size:15px; font-weight:900; color:#111; }
     .calendar-grid{ display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; }
     .calendar-dow{ text-align:center; font-size:11px; color:#777; font-weight:800; padding:3px 0; }
     .calendar-day{ min-height:56px; border-radius:10px; background:#f7f7fa; padding:5px 4px; box-sizing:border-box; overflow:hidden; }
@@ -91,7 +94,7 @@
     .calendar-event{ margin-top:4px; padding:3px 4px; border-radius:7px; background:#111; color:#fff; font-size:10px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
     .calendar-event:active{ opacity:.75; }
     .calendar-more{ margin-top:3px; font-size:10px; color:#666; line-height:1; }
-    .calendar-empty-text{ color:#777; font-size:12px; padding:8px 0 0; }
+    .calendar-empty-text{ color:#777; font-size:12px; padding:8px 2px 0; }
 
     /* ===== Common modal for notice/calendar ===== */
     .app-modal{ position:fixed; inset:0; z-index:1500; display:flex; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; opacity:0; visibility:hidden; transition:.2s; }
@@ -230,7 +233,11 @@
       <div id="calendarSection" class="calendar-section">
         <div class="section-head">
           <h3 class="section-title">予定カレンダー</h3>
+        </div>
+        <div class="calendar-nav" aria-label="カレンダー月移動">
+          <button id="calendarPrevBtn" class="calendar-nav-btn" type="button" aria-label="前月へ">＜</button>
           <div id="calendarRangeLabel" class="calendar-range"></div>
+          <button id="calendarNextBtn" class="calendar-nav-btn" type="button" aria-label="翌月へ">＞</button>
         </div>
         <div id="calendarView" class="calendar-wrap"></div>
       </div>
@@ -394,6 +401,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeAppModal();
 });
 
+document.getElementById('calendarPrevBtn')?.addEventListener('click', () => moveCalendarMonth(-1));
+document.getElementById('calendarNextBtn')?.addEventListener('click', () => moveCalendarMonth(1));
+
 function makeClickable(el, handler) {
   el.addEventListener('click', handler);
   el.addEventListener('keydown', (e) => {
@@ -454,10 +464,13 @@ async function fetchAndRenderNotices(accessToken) {
 }
 
 const CALENDAR_MONTH_COUNT = 3;
+let calendarEventsCache = [];
+let calendarMonthOffset = 0;
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 function ymd(date) { return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`; }
 function monthLabel(date) { return `${date.getFullYear()}年${date.getMonth() + 1}月`; }
+function clampCalendarOffset(offset) { return Math.max(0, Math.min(CALENDAR_MONTH_COUNT - 1, offset)); }
 
 function parseDateOnly(value) {
   const s = String(value || '').trim();
@@ -512,69 +525,73 @@ function openCalendarEvent(event) {
 }
 
 function renderCalendar(events) {
+  if (Array.isArray(events)) {
+    calendarEventsCache = events;
+  }
+
   const section = document.getElementById('calendarSection');
   const wrap = document.getElementById('calendarView');
   const label = document.getElementById('calendarRangeLabel');
+  const prevBtn = document.getElementById('calendarPrevBtn');
+  const nextBtn = document.getElementById('calendarNextBtn');
   if (!section || !wrap) return;
 
   section.style.display = 'block';
   wrap.innerHTML = '';
 
-  const safeEvents = Array.isArray(events) ? events : [];
+  const safeEvents = calendarEventsCache;
   const today = new Date();
-  const firstMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastMonth = new Date(today.getFullYear(), today.getMonth() + CALENDAR_MONTH_COUNT - 1, 1);
-  if (label) label.textContent = `${monthLabel(firstMonth)}〜${monthLabel(lastMonth)}`;
+  calendarMonthOffset = clampCalendarOffset(calendarMonthOffset);
 
+  const monthDate = new Date(today.getFullYear(), today.getMonth() + calendarMonthOffset, 1);
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
   const eventsByDate = groupEventsByDate(safeEvents);
   const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+  const cells = [];
+  let monthEventCount = 0;
 
-  for (let m = 0; m < CALENDAR_MONTH_COUNT; m++) {
-    const monthDate = new Date(today.getFullYear(), today.getMonth() + m, 1);
-    const year = monthDate.getFullYear();
-    const month = monthDate.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const cells = [];
+  if (label) label.textContent = monthLabel(monthDate);
+  if (prevBtn) prevBtn.disabled = calendarMonthOffset <= 0;
+  if (nextBtn) nextBtn.disabled = calendarMonthOffset >= CALENDAR_MONTH_COUNT - 1;
 
-    weekDays.forEach(d => cells.push(`<div class="calendar-dow">${d}</div>`));
+  weekDays.forEach(d => cells.push(`<div class="calendar-dow">${d}</div>`));
 
-    for (let i = 0; i < firstDay.getDay(); i++) {
-      cells.push('<div class="calendar-day empty"></div>');
-    }
-
-    for (let day = 1; day <= lastDay.getDate(); day++) {
-      const current = new Date(year, month, day);
-      const key = ymd(current);
-      const dayEvents = eventsByDate.get(key) || [];
-      const isToday = key === ymd(today);
-      const eventChips = dayEvents.slice(0, 2).map(({ event, index }) => {
-        const time = event.startTime ? `${escapeHtml(event.startTime)} ` : '';
-        return `<div class="calendar-event" role="button" tabindex="0" data-event-index="${index}">${time}${escapeHtml(event.title || '予定')}</div>`;
-      }).join('');
-      const more = dayEvents.length > 2 ? `<div class="calendar-more">+${dayEvents.length - 2}件</div>` : '';
-
-      cells.push(`
-        <div class="calendar-day ${isToday ? 'today' : ''}">
-          <div class="calendar-date">${day}</div>
-          ${eventChips}${more}
-        </div>
-      `);
-    }
-
-    const monthEl = document.createElement('div');
-    monthEl.className = 'calendar-month';
-    monthEl.innerHTML = `
-      <h4 class="calendar-month-title">${monthLabel(monthDate)}</h4>
-      <div class="calendar-grid">${cells.join('')}</div>
-    `;
-    wrap.appendChild(monthEl);
+  for (let i = 0; i < firstDay.getDay(); i++) {
+    cells.push('<div class="calendar-day empty"></div>');
   }
 
-  if (safeEvents.length === 0) {
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const current = new Date(year, month, day);
+    const key = ymd(current);
+    const dayEvents = eventsByDate.get(key) || [];
+    monthEventCount += dayEvents.length;
+    const isToday = key === ymd(today);
+    const eventChips = dayEvents.slice(0, 2).map(({ event, index }) => {
+      const time = event.startTime ? `${escapeHtml(event.startTime)} ` : '';
+      return `<div class="calendar-event" role="button" tabindex="0" data-event-index="${index}">${time}${escapeHtml(event.title || '予定')}</div>`;
+    }).join('');
+    const more = dayEvents.length > 2 ? `<div class="calendar-more">+${dayEvents.length - 2}件</div>` : '';
+
+    cells.push(`
+      <div class="calendar-day ${isToday ? 'today' : ''}">
+        <div class="calendar-date">${day}</div>
+        ${eventChips}${more}
+      </div>
+    `);
+  }
+
+  const monthEl = document.createElement('div');
+  monthEl.className = 'calendar-month';
+  monthEl.innerHTML = `<div class="calendar-grid">${cells.join('')}</div>`;
+  wrap.appendChild(monthEl);
+
+  if (monthEventCount === 0) {
     const empty = document.createElement('div');
     empty.className = 'calendar-empty-text';
-    empty.textContent = '表示対象期間の予定はありません。';
+    empty.textContent = 'この月の予定はありません。';
     wrap.appendChild(empty);
   }
 
@@ -587,8 +604,16 @@ function renderCalendar(events) {
   });
 }
 
+function moveCalendarMonth(diff) {
+  const nextOffset = clampCalendarOffset(calendarMonthOffset + diff);
+  if (nextOffset === calendarMonthOffset) return;
+  calendarMonthOffset = nextOffset;
+  renderCalendar();
+}
+
 async function fetchAndRenderCalendar(accessToken) {
   try {
+    calendarMonthOffset = 0;
     const res = await post('calendar', { accessToken });
     renderCalendar(res?.ok === true ? (res.events || []) : []);
   } catch (e) {
