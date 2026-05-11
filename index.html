@@ -71,6 +71,37 @@
     .notice-title{ font-weight: 900; font-size: 16px; margin: 0; color:#111; line-height: 1.25; }
     .notice-meta{ font-size: 12px; color:#666; }
     .notice-body{ margin-top: 10px; color:#222; font-size: 14px; line-height: 1.7; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .notice-panel.is-clickable{ cursor:pointer; }
+    .notice-panel.is-clickable:active{ transform: translateY(1px); }
+    .notice-hint{ margin-top: 10px; font-size: 12px; color:#777; font-weight: 700; }
+    .notice-link{ display:inline-block; margin-top:12px; color:#111; font-size:13px; font-weight:800; text-decoration: underline; }
+
+    /* ===== Calendar ===== */
+    .calendar-section{ margin-top: 16px; }
+    .calendar-range{ color:#666; font-size: 12px; white-space: nowrap; }
+    .calendar-wrap{ display:grid; gap: 12px; }
+    .calendar-month{ background:#fff; border:1px solid #e9e9ef; border-radius:16px; padding:14px; box-shadow:0 10px 24px rgba(0,0,0,.06); }
+    .calendar-month-title{ margin:0 0 10px; font-size:15px; font-weight:900; color:#111; }
+    .calendar-grid{ display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; }
+    .calendar-dow{ text-align:center; font-size:11px; color:#777; font-weight:800; padding:3px 0; }
+    .calendar-day{ min-height:56px; border-radius:10px; background:#f7f7fa; padding:5px 4px; box-sizing:border-box; overflow:hidden; }
+    .calendar-day.empty{ background:transparent; }
+    .calendar-day.today{ outline:2px solid #111; background:#fff; }
+    .calendar-date{ font-size:11px; font-weight:900; color:#222; line-height:1; }
+    .calendar-event{ margin-top:4px; padding:3px 4px; border-radius:7px; background:#111; color:#fff; font-size:10px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+    .calendar-event:active{ opacity:.75; }
+    .calendar-more{ margin-top:3px; font-size:10px; color:#666; line-height:1; }
+    .calendar-empty-text{ color:#777; font-size:12px; padding:8px 0 0; }
+
+    /* ===== Common modal for notice/calendar ===== */
+    .app-modal{ position:fixed; inset:0; z-index:1500; display:flex; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; opacity:0; visibility:hidden; transition:.2s; }
+    .app-modal.show{ opacity:1; visibility:visible; }
+    .app-modal-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.55); }
+    .app-modal-panel{ position:relative; width:100%; max-width:460px; max-height:82vh; overflow:auto; background:#fff; border-radius:18px; padding:22px; box-shadow:0 20px 60px rgba(0,0,0,.24); box-sizing:border-box; }
+    .app-modal-close{ position:absolute; top:10px; right:10px; width:34px; height:34px; border:none; border-radius:999px; background:#f1f1f5; color:#111; font-size:20px; font-weight:900; cursor:pointer; }
+    .app-modal-meta{ padding-right:42px; color:#777; font-size:12px; line-height:1.6; white-space:pre-wrap; }
+    .app-modal-title{ margin:8px 42px 12px 0; color:#111; font-size:18px; line-height:1.35; font-weight:900; }
+    .app-modal-body{ color:#222; font-size:14px; line-height:1.8; white-space:pre-wrap; word-break:break-word; }
     
     .panel { background: #fff; border: 1px solid #e9e9ef; border-radius: 16px; padding: 24px; box-shadow: 0 10px 24px rgba(0,0,0,.06); }
     label { font-size: 13px; color:#333; display:block; margin-bottom: 8px; font-weight: bold; }
@@ -196,6 +227,14 @@
       
       <button id="openGachaBtn" class="btn-primary btn-gacha" onclick="openGacha()">⚽️ フェアプレー賞 限定PKに挑戦！</button>
 
+      <div id="calendarSection" class="calendar-section">
+        <div class="section-head">
+          <h3 class="section-title">予定カレンダー</h3>
+          <div id="calendarRangeLabel" class="calendar-range"></div>
+        </div>
+        <div id="calendarView" class="calendar-wrap"></div>
+      </div>
+
       <div id="noticeSection" class="notice-section">
         <div class="section-head"><h3 class="section-title">お知らせ</h3></div>
         <div id="noticeView" class="notice-wrap"></div>
@@ -238,6 +277,17 @@
               <button class="btn-primary" style="margin-top: 20px;" onclick="closeGachaAndReload()">会員証へ戻る</button>
           </div>
       </div>
+  </div>
+
+  <div id="appModal" class="app-modal" aria-hidden="true">
+    <div class="app-modal-backdrop" onclick="closeAppModal()"></div>
+    <div class="app-modal-panel" role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
+      <button class="app-modal-close" type="button" onclick="closeAppModal()" aria-label="閉じる">×</button>
+      <div id="appModalMeta" class="app-modal-meta"></div>
+      <h3 id="appModalTitle" class="app-modal-title"></h3>
+      <div id="appModalBody" class="app-modal-body"></div>
+      <a id="appModalLink" class="notice-link" href="#" target="_blank" rel="noopener">詳細を見る</a>
+    </div>
   </div>
 
 <script>
@@ -313,23 +363,238 @@ function fmtPeriod(s, e) { if (!s && !e) return ''; if (s && e) return `${s} 〜
 function escapeHtml(str) { return String(str ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;'); }
 function safeUrl(u) { if (!u) return ''; if (u.startsWith('http://') || u.startsWith('https://')) return u; return ''; }
 
+function showAppModal({ title = '', meta = '', body = '', url = '' } = {}) {
+  const modal = document.getElementById('appModal');
+  document.getElementById('appModalTitle').textContent = title || '';
+  document.getElementById('appModalMeta').textContent = meta || '';
+  document.getElementById('appModalBody').textContent = body || '';
+
+  const link = document.getElementById('appModalLink');
+  const href = safeUrl(url || '');
+  if (href) {
+    link.href = href;
+    link.style.display = 'inline-block';
+  } else {
+    link.removeAttribute('href');
+    link.style.display = 'none';
+  }
+
+  modal.classList.add('show');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeAppModal() {
+  const modal = document.getElementById('appModal');
+  if (!modal) return;
+  modal.classList.remove('show');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeAppModal();
+});
+
+function makeClickable(el, handler) {
+  el.addEventListener('click', handler);
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handler();
+    }
+  });
+}
+
 function renderNotices(notices) {
-  const section = document.getElementById('noticeSection'); const wrap = document.getElementById('noticeView'); wrap.innerHTML = '';
-  if (!Array.isArray(notices) || notices.length === 0) { section.style.display = 'none'; return; }
+  const section = document.getElementById('noticeSection');
+  const wrap = document.getElementById('noticeView');
+  wrap.innerHTML = '';
+
+  if (!Array.isArray(notices) || notices.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
   section.style.display = 'block';
+
   notices.slice(0, 3).forEach(n => {
-    const period = escapeHtml(fmtPeriod(n.startAt, n.endAt));
-    wrap.innerHTML += `
-      <div class="notice-panel">
-        <div class="notice-head">${period ? `<div class="notice-meta">掲載期間: ${period}</div>` : ``}<h4 class="notice-title">${escapeHtml(n.title || 'お知らせ')}</h4></div>
-        ${n.body ? `<div class="notice-body">${escapeHtml(n.body)}</div>` : ``}
-        ${safeUrl(n.url) ? `<a class="notice-link" href="${escapeHtml(safeUrl(n.url))}" target="_blank">詳細を見る</a>` : ``}
-      </div>`;
+    const period = fmtPeriod(n.startAt, n.endAt);
+    const panel = document.createElement('div');
+    panel.className = 'notice-panel is-clickable';
+    panel.setAttribute('role', 'button');
+    panel.tabIndex = 0;
+    panel.innerHTML = `
+      <div class="notice-head">
+        ${period ? `<div class="notice-meta">掲載期間: ${escapeHtml(period)}</div>` : ``}
+        <h4 class="notice-title">${escapeHtml(n.title || 'お知らせ')}</h4>
+      </div>
+      ${n.body ? `<div class="notice-body">${escapeHtml(n.body)}</div>` : ``}
+      <div class="notice-hint">タップして全文を見る</div>
+    `;
+
+    makeClickable(panel, () => {
+      showAppModal({
+        title: n.title || 'お知らせ',
+        meta: period ? `掲載期間: ${period}` : '',
+        body: n.body || '本文はありません。',
+        url: n.url || ''
+      });
+    });
+
+    wrap.appendChild(panel);
   });
 }
 
 async function fetchAndRenderNotices(accessToken) {
-  try { const noticeRes = await post('notices', { accessToken }); renderNotices(noticeRes?.ok === true ? (noticeRes.notices || []) : []); } catch (_) { renderNotices([]); }
+  try {
+    const noticeRes = await post('notices', { accessToken });
+    renderNotices(noticeRes?.ok === true ? (noticeRes.notices || []) : []);
+  } catch (_) {
+    renderNotices([]);
+  }
+}
+
+const CALENDAR_MONTH_COUNT = 3;
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function ymd(date) { return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`; }
+function monthLabel(date) { return `${date.getFullYear()}年${date.getMonth() + 1}月`; }
+
+function parseDateOnly(value) {
+  const s = String(value || '').trim();
+  const m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+function groupEventsByDate(events) {
+  const map = new Map();
+
+  events.forEach((event, index) => {
+    const start = parseDateOnly(event.startDate || event.startAt);
+    const parsedEnd = parseDateOnly(event.endDate || event.startDate || event.startAt);
+    const end = parsedEnd && parsedEnd >= start ? parsedEnd : start;
+    if (!start) return;
+
+    const cursor = new Date(start);
+    let guard = 0;
+    while (cursor <= end && guard < 100) {
+      const key = ymd(cursor);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push({ event, index });
+      cursor.setDate(cursor.getDate() + 1);
+      guard += 1;
+    }
+  });
+
+  return map;
+}
+
+function formatEventPeriod(event) {
+  const start = [event.startDate, event.startTime].filter(Boolean).join(' ');
+  const end = [event.endDate, event.endTime].filter(Boolean).join(' ');
+
+  if (start && end && start !== end) return `${start} 〜 ${end}`;
+  return start || event.startAt || '';
+}
+
+function openCalendarEvent(event) {
+  const meta = [];
+  const period = formatEventPeriod(event);
+  if (period) meta.push(`日時: ${period}`);
+  if (event.place) meta.push(`場所: ${event.place}`);
+
+  showAppModal({
+    title: event.title || '予定',
+    meta: meta.join('\n'),
+    body: event.detail || '詳細情報はありません。',
+    url: event.url || ''
+  });
+}
+
+function renderCalendar(events) {
+  const section = document.getElementById('calendarSection');
+  const wrap = document.getElementById('calendarView');
+  const label = document.getElementById('calendarRangeLabel');
+  if (!section || !wrap) return;
+
+  section.style.display = 'block';
+  wrap.innerHTML = '';
+
+  const safeEvents = Array.isArray(events) ? events : [];
+  const today = new Date();
+  const firstMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastMonth = new Date(today.getFullYear(), today.getMonth() + CALENDAR_MONTH_COUNT - 1, 1);
+  if (label) label.textContent = `${monthLabel(firstMonth)}〜${monthLabel(lastMonth)}`;
+
+  const eventsByDate = groupEventsByDate(safeEvents);
+  const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+
+  for (let m = 0; m < CALENDAR_MONTH_COUNT; m++) {
+    const monthDate = new Date(today.getFullYear(), today.getMonth() + m, 1);
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const cells = [];
+
+    weekDays.forEach(d => cells.push(`<div class="calendar-dow">${d}</div>`));
+
+    for (let i = 0; i < firstDay.getDay(); i++) {
+      cells.push('<div class="calendar-day empty"></div>');
+    }
+
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      const current = new Date(year, month, day);
+      const key = ymd(current);
+      const dayEvents = eventsByDate.get(key) || [];
+      const isToday = key === ymd(today);
+      const eventChips = dayEvents.slice(0, 2).map(({ event, index }) => {
+        const time = event.startTime ? `${escapeHtml(event.startTime)} ` : '';
+        return `<div class="calendar-event" role="button" tabindex="0" data-event-index="${index}">${time}${escapeHtml(event.title || '予定')}</div>`;
+      }).join('');
+      const more = dayEvents.length > 2 ? `<div class="calendar-more">+${dayEvents.length - 2}件</div>` : '';
+
+      cells.push(`
+        <div class="calendar-day ${isToday ? 'today' : ''}">
+          <div class="calendar-date">${day}</div>
+          ${eventChips}${more}
+        </div>
+      `);
+    }
+
+    const monthEl = document.createElement('div');
+    monthEl.className = 'calendar-month';
+    monthEl.innerHTML = `
+      <h4 class="calendar-month-title">${monthLabel(monthDate)}</h4>
+      <div class="calendar-grid">${cells.join('')}</div>
+    `;
+    wrap.appendChild(monthEl);
+  }
+
+  if (safeEvents.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'calendar-empty-text';
+    empty.textContent = '表示対象期間の予定はありません。';
+    wrap.appendChild(empty);
+  }
+
+  wrap.querySelectorAll('.calendar-event').forEach(el => {
+    const open = () => {
+      const index = Number(el.dataset.eventIndex);
+      if (Number.isInteger(index) && safeEvents[index]) openCalendarEvent(safeEvents[index]);
+    };
+    makeClickable(el, open);
+  });
+}
+
+async function fetchAndRenderCalendar(accessToken) {
+  try {
+    const res = await post('calendar', { accessToken });
+    renderCalendar(res?.ok === true ? (res.events || []) : []);
+  } catch (e) {
+    const section = document.getElementById('calendarSection');
+    if (section) section.style.display = 'none';
+  }
 }
 
 async function init() {
@@ -349,7 +614,10 @@ async function init() {
 
     showOnly('memberView');
     renderCard(me.member);
-    await fetchAndRenderNotices(accessToken);
+    await Promise.all([
+      fetchAndRenderCalendar(accessToken),
+      fetchAndRenderNotices(accessToken)
+    ]);
   } catch (e) { 
     console.error(e); 
     showError("通信エラーが発生しました: " + e.message); 
@@ -369,7 +637,11 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
         if (!saved || saved.ok !== true) { regMsg.textContent = saved?.error ? `登録失敗: ${saved.error}` : '登録に失敗しました。'; btn.disabled = false; btn.textContent = '登録する'; return; }
         let member = saved.member;
         if (!member) { const me = await post('me', { accessToken }); member = me.member; }
-        showOnly('memberView'); renderCard(member); await fetchAndRenderNotices(accessToken);
+        showOnly('memberView'); renderCard(member);
+        await Promise.all([
+          fetchAndRenderCalendar(accessToken),
+          fetchAndRenderNotices(accessToken)
+        ]);
     } catch (e) {
         document.getElementById('regMsg').textContent = e?.message || String(e);
     } finally {
