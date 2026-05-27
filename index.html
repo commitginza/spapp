@@ -49,7 +49,15 @@
     .top { display:flex; align-items:flex-start; justify-content: space-between; position: relative; z-index: 1; }
     .name { font-weight: 800; letter-spacing: .02em; font-size: 18px; line-height: 1.2; text-shadow: 0 2px 12px rgba(0,0,0,.18); word-break: break-word; }
     .sub { font-size: 12px; opacity: .92; margin-top: 6px; }
-    .center { display:flex; align-items:center; justify-content:center; position: relative; z-index: 1; }
+    .center {
+      display:flex;
+      flex-direction: column;
+      align-items:center;
+      justify-content:center;
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
     .rank-badge {
       display: inline-flex; align-items: center; justify-content: center;
       padding: 6px 14px; border-radius: 999px; background: rgba(0,0,0,.18);
@@ -60,6 +68,31 @@
     .bottom { display:flex; align-items:flex-end; justify-content: space-between; position: relative; z-index: 1; gap: 10px; }
     .points { font-weight: 900; font-size: 36px; letter-spacing: .02em; text-shadow: 0 2px 12px rgba(0,0,0,.18); white-space: nowrap; }
     .points small { font-size: 13px; opacity: .85; margin-left: 6px; font-weight: 700; letter-spacing: .1em; }
+    .bonus-points {
+      display: none;
+      margin-top: 4px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      opacity: .92;
+      text-shadow: 0 2px 10px rgba(0,0,0,.18);
+      white-space: nowrap;
+    }
+    .bonus-points sup {
+      font-size: 10px;
+      margin-left: 3px;
+    }
+    .point-note {
+      display: none;
+      margin: 8px 4px 0;
+      color: #555;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .point-note .note-mark {
+      font-weight: 900;
+      color: #333;
+    }
 
     /* ===== Notice / Other UI ===== */
     .notice-section{ margin-top: 16px; }
@@ -230,11 +263,17 @@
         </div>
         <div class="center">
           <div class="points" id="points">0 <small>POINTS</small></div>
+          <div class="bonus-points" id="entryBonusPoints">150,000 P <sup>*1</sup></div>
         </div>
         <div class="bottom">
           <div class="rank-badge" id="rankBadge">A4</div>
           <div class="muted" style="color:rgba(255,255,255,.92); white-space:nowrap;">Football Assist</div>
         </div>
+      </div>
+
+      <div class="point-note" id="entryBonusNote">
+        <span class="note-mark">*1</span>
+        入社月より3ヶ月間有効です。
       </div>
       
       <button id="openGachaBtn" class="btn-primary btn-gacha" onclick="openGacha()">⚽️ フェアプレー賞 限定PKに挑戦！</button>
@@ -341,6 +380,78 @@ async function post(action, payload = {}, retries = 1) {
 function normalizeRank(rank) { return ['A1','A2','A3','A4'].includes((rank || '').toString().trim().toUpperCase()) ? (rank || '').toString().trim().toUpperCase() : 'A4'; }
 function rankClass(rank) { switch (rank) { case 'A1': return 'rank-a1'; case 'A2': return 'rank-a2'; case 'A3': return 'rank-a3'; default: return 'rank-a4'; } }
 
+const ENTRY_BONUS_START_YEAR = 2026;
+const ENTRY_BONUS_START_MONTH = 6;
+const ENTRY_BONUS_MONTHS = 3;
+const ENTRY_BONUS_DEFAULT_POINTS = 150000;
+
+function monthIndex(year, month) {
+  return year * 12 + (month - 1);
+}
+
+function getTokyoYearMonth() {
+  const parts = new Intl.DateTimeFormat('ja-JP-u-ca-gregory', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: 'numeric'
+  }).formatToParts(new Date());
+
+  return {
+    year: Number(parts.find(p => p.type === 'year')?.value),
+    month: Number(parts.find(p => p.type === 'month')?.value)
+  };
+}
+
+function parseJoinMonth(value) {
+  const s = String(value ?? '').trim();
+  if (!s) return null;
+
+  // 対応例: 2026/06/01, 2026-06, 2026年6月, 202606
+  const m = s.match(/(\d{4})\D{0,3}(\d{1,2})/);
+  if (!m) return null;
+
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return null;
+  if (month < 1 || month > 12) return null;
+
+  return { year, month };
+}
+
+function shouldShowEntryBonusByJoinMonth(joinMonthValue) {
+  const joined = parseJoinMonth(joinMonthValue);
+  if (!joined) return false;
+
+  const joinIdx = monthIndex(joined.year, joined.month);
+  const startIdx = monthIndex(ENTRY_BONUS_START_YEAR, ENTRY_BONUS_START_MONTH);
+  if (joinIdx < startIdx) return false;
+
+  const now = getTokyoYearMonth();
+  if (!Number.isFinite(now.year) || !Number.isFinite(now.month)) return false;
+
+  const nowIdx = monthIndex(now.year, now.month);
+  return nowIdx >= joinIdx && nowIdx <= joinIdx + (ENTRY_BONUS_MONTHS - 1);
+}
+
+function toggleEntryBonus(member) {
+  const bonusPoints = document.getElementById('entryBonusPoints');
+  const bonusNote = document.getElementById('entryBonusNote');
+  if (!bonusPoints || !bonusNote) return;
+
+  // LambdaがshowEntryBonusを返す場合はそれを優先。未対応時だけフロント側で月単位判定。
+  const show = typeof member?.showEntryBonus === 'boolean'
+    ? member.showEntryBonus
+    : shouldShowEntryBonusByJoinMonth(member?.joinMonth);
+
+  const bonusPointValue = Number.isFinite(Number(member?.entryBonusPoints))
+    ? Number(member.entryBonusPoints)
+    : ENTRY_BONUS_DEFAULT_POINTS;
+
+  bonusPoints.innerHTML = `${bonusPointValue.toLocaleString()} P <sup>*1</sup>`;
+  bonusPoints.style.display = show ? 'block' : 'none';
+  bonusNote.style.display = show ? 'block' : 'none';
+}
+
 function renderCard(member) {
   const fullName = `${(member?.lastName || '').trim()} ${(member?.firstName || '').trim()}`.trim() || '-';
   const pointNum = Number.isFinite(Number(member?.point ?? 0)) ? Number(member?.point ?? 0) : 0;
@@ -350,6 +461,7 @@ function renderCard(member) {
   document.getElementById('name').textContent = fullName;
   document.getElementById('rankBadge').textContent = rank;
   document.getElementById('points').innerHTML = `${pointNum.toLocaleString()} <small>POINTS</small>`;
+  toggleEntryBonus(member);
   
   // ▼ H列、I列の判定に基づくボタン制御
   const gachaBtn = document.getElementById('openGachaBtn');
