@@ -361,7 +361,7 @@
       </div>
       <div class="gacha-status" id="gachaStatus">
           <div class="gacha-status-step" id="gachaStatusStep">1st CHALLENGE</div>
-          <div class="gacha-status-main" id="gachaStatusMain">まずはユニフォーム抽選</div>
+          <div class="gacha-status-main" id="gachaStatusMain">ユニフォーム抽選</div>
           <div class="gacha-status-sub" id="gachaStatusSub">当選した場合は、ポイント抽選を行わず終了します。</div>
       </div>
       <div class="pk-area">
@@ -392,6 +392,7 @@
 <script>
 const LIFF_ID = '2009200776-bffw4Fd6';
 const API_URL = 'https://vqzc369jaa.execute-api.ap-northeast-1.amazonaws.com/member';
+let currentMember = null;
 
 function showOnly(viewId) {
   const ids = ['loadingView', 'memberView', 'registerView', 'errorView', 'gachaView'];
@@ -517,6 +518,8 @@ function toggleEntryBonus(member) {
 }
 
 function renderCard(member) {
+  currentMember = member || null;
+
   const fullName = `${(member?.lastName || '').trim()} ${(member?.firstName || '').trim()}`.trim() || '-';
   const pointNum = Number.isFinite(Number(member?.point ?? 0)) ? Number(member?.point ?? 0) : 0;
   const rank = normalizeRank(member?.rank);
@@ -527,8 +530,12 @@ function renderCard(member) {
   document.getElementById('points').innerHTML = `${pointNum.toLocaleString()} <small>POINTS</small>`;
   toggleEntryBonus(member);
   
-  // ▼ H列、I列の判定に基づくボタン制御
+  // ▼ H列、I列、J列の状態に基づくボタン制御
   const gachaBtn = document.getElementById('openGachaBtn');
+  const isPointPending = member?.gachaPendingPoint === true
+    || member?.isPointPending === true
+    || member?.gachaStep === 'point_pending'
+    || member?.gachaPhase === 'point_pending';
   
   if (!member?.isEligible) {
       // H列に値がない（対象外）場合は、ボタン自体を完全に隠す
@@ -538,11 +545,15 @@ function renderCard(member) {
       gachaBtn.style.display = 'block';
       
       if (member?.hasPlayedGacha) {
-          // I列に値がある（実行済み）場合
+          // I列に「済」がある（最終結果まで完了）場合
           gachaBtn.disabled = true;
           gachaBtn.innerText = '⚽️ ガチャは挑戦済みです';
+      } else if (isPointPending) {
+          // ユニフォーム抽選落選後、ポイント抽選待ちの場合
+          gachaBtn.disabled = false;
+          gachaBtn.innerText = '⚽️ セカンドチャンスに挑戦！';
       } else {
-          // I列に値がない（未挑戦）場合
+          // 未挑戦の場合
           gachaBtn.disabled = false;
           gachaBtn.innerText = '⚽️ フェアプレー賞 限定PKに挑戦！';
       }
@@ -972,6 +983,8 @@ const gachaStatusStep = document.getElementById('gachaStatusStep');
 const gachaStatusMain = document.getElementById('gachaStatusMain');
 const gachaStatusSub = document.getElementById('gachaStatusSub');
 
+let gachaPhase = 'uniform';
+
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -990,14 +1003,69 @@ function resetBallAnimation() {
     void ball.offsetWidth;
 }
 
+function isCurrentMemberPointPending() {
+    return currentMember?.gachaPendingPoint === true
+        || currentMember?.isPointPending === true
+        || currentMember?.gachaStep === 'point_pending'
+        || currentMember?.gachaPhase === 'point_pending';
+}
+
+function updateMemberAsPointPending() {
+    currentMember = {
+        ...(currentMember || {}),
+        hasPlayedGacha: false,
+        gachaPendingPoint: true,
+        isPointPending: true,
+        gachaStep: 'point_pending',
+        gachaPhase: 'point_pending'
+    };
+
+    const gachaBtn = document.getElementById('openGachaBtn');
+    if (gachaBtn) {
+        gachaBtn.disabled = false;
+        gachaBtn.innerText = '⚽️ セカンドチャンスに挑戦！';
+    }
+}
+
+function updateMemberAsFinished() {
+    currentMember = {
+        ...(currentMember || {}),
+        hasPlayedGacha: true,
+        gachaPendingPoint: false,
+        isPointPending: false,
+        gachaStep: 'finished',
+        gachaPhase: 'completed'
+    };
+
+    const gachaBtn = document.getElementById('openGachaBtn');
+    if (gachaBtn) {
+        gachaBtn.disabled = true;
+        gachaBtn.innerText = '⚽️ ガチャは挑戦済みです';
+    }
+}
+
 function openGacha() {
     showOnly('gachaView');
     resetBallAnimation();
     gachaModal.classList.remove('show');
     gachaResult.innerHTML = '';
+
+    if (isCurrentMemberPointPending()) {
+        gachaPhase = 'point';
+        setGachaStatus(
+            'SECOND CHANCE',
+            'セカンドチャンスから再開',
+            'ユニフォーム抽選は終了済みです。<br>ボタンを押して1,000pt抽選に挑戦してください。'
+        );
+        shootBtn.disabled = false;
+        shootBtn.innerText = 'セカンドチャンスに挑戦！';
+        return;
+    }
+
+    gachaPhase = 'uniform';
     setGachaStatus(
         '1st CHALLENGE',
-        'まずはユニフォーム抽選',
+        'ユニフォーム抽選',
         '当選した場合は、ポイント抽選を行わず終了します。'
     );
     shootBtn.disabled = false;
@@ -1013,71 +1081,101 @@ function closeGachaAndReload() {
     init(); 
 }
 
-function normalizeGachaApiResult(apiRes) {
-    const prizeType = apiRes?.prizeType
-        || (apiRes?.isUniformWin ? 'uniform' : (apiRes?.isPointWin || apiRes?.isWin ? 'point' : 'none'));
+function getGachaErrorMessage(error) {
+    const errorMessageMap = {
+        already_played: 'すでにガチャに挑戦済みです。',
+        not_eligible: 'ガチャの対象者ではありません。',
+        user_not_found: '会員情報が見つかりませんでした。',
+        line_auth_failed: 'LINE認証に失敗しました。',
+        uniform_draw_required: '先にユニフォーム抽選を行ってください。',
+        uniform_required: '先にユニフォーム抽選を行ってください。',
+        need_uniform_first: '先にユニフォーム抽選を行ってください。',
+        invalid_gacha_state: 'ガチャ状態に不整合があります。管理者に確認してください。'
+    };
+    return errorMessageMap[error] || 'ガチャ結果の取得に失敗しました。';
+}
 
+function normalizeUniformResult(apiRes) {
     return {
-        prizeType,
+        prizeType: apiRes?.prizeType || (apiRes?.isUniformWin ? 'uniform' : 'pending_point'),
         uniformResult: apiRes?.uniformResult || (apiRes?.isUniformWin ? 'win' : 'lose'),
-        pointResult: apiRes?.pointResult || (apiRes?.isPointWin || apiRes?.isWin ? 'win' : (prizeType === 'uniform' ? 'skipped' : 'lose')),
-        didUniformDraw: apiRes?.didUniformDraw !== false,
-        didPointDraw: apiRes?.didPointDraw === true || (prizeType !== 'uniform'),
+        pointResult: apiRes?.pointResult || 'waiting',
+        isUniformWin: apiRes?.isUniformWin === true || apiRes?.prizeType === 'uniform',
+        isPointPending: apiRes?.isPointPending === true
+            || apiRes?.pointPending === true
+            || apiRes?.prizeType === 'pending_point'
+            || apiRes?.nextAction === 'point'
+            || apiRes?.nextAction === 'playPointGacha'
     };
 }
 
-async function showFinalGachaResult(result) {
+function normalizePointResult(apiRes) {
+    const prizeType = apiRes?.prizeType
+        || (apiRes?.isPointWin || apiRes?.isWin ? 'point' : 'none');
+
+    return {
+        prizeType,
+        pointResult: apiRes?.pointResult || (prizeType === 'point' ? 'win' : 'lose'),
+        isPointWin: apiRes?.isPointWin === true || apiRes?.isWin === true || prizeType === 'point'
+    };
+}
+
+async function showUniformWinResult() {
     ball.classList.remove('charging');
     shootBtn.innerText = '結果発表！';
+    updateMemberAsFinished();
 
-    if (result.prizeType === 'uniform') {
-        setGachaStatus(
-            'SPECIAL GOAL',
-            'ユニフォーム抽選に当選！',
-            'ポイント抽選は行わず、ユニフォーム賞で確定です。'
-        );
-        ball.classList.add('shoot-win');
-        setTimeout(() => { if (goal) goal.classList.add('shake'); }, 1800);
-        await wait(2500);
-        gachaResult.innerHTML = `
-            <div class="result-text win-text">SPECIAL GOAL!!</div>
-            <div class="point-text">ユニフォーム当選</div>
-            <p style="color: #666; font-size: 14px;">おめでとうございます！<br>ユニフォーム賞に当選しました。</p>
-        `;
-        gachaModal.classList.add('show');
-        return;
-    }
+    setGachaStatus(
+        'SPECIAL GOAL',
+        'ユニフォーム抽選に当選！',
+        'ポイント抽選は行わず、ユニフォーム賞で確定です。'
+    );
+    ball.classList.add('shoot-win');
+    setTimeout(() => { if (goal) goal.classList.add('shake'); }, 1800);
+    await wait(2500);
 
-    // ユニフォームに当たらなかった場合だけ、画面上でセカンドチャンスに進む演出を入れる。
-    if (result.uniformResult === 'closed') {
+    gachaResult.innerHTML = `
+        <div class="result-text win-text">SPECIAL GOAL!!</div>
+        <div class="point-text">ユニフォーム当選</div>
+        <p style="color: #666; font-size: 14px;">おめでとうございます！<br>ユニフォーム賞に当選しました。</p>
+    `;
+    gachaModal.classList.add('show');
+}
+
+function prepareSecondChance(uniformResult) {
+    ball.classList.remove('charging');
+    resetBallAnimation();
+    updateMemberAsPointPending();
+    gachaPhase = 'point';
+
+    if (uniformResult === 'closed') {
         setGachaStatus(
             'SECOND CHANCE',
             'ユニフォーム賞は当選枠に達しています',
-            'セカンドチャンスとして、1,000pt抽選へ進みます。'
+            'まだ終わりではありません。<br>ボタンを押して、セカンドチャンスの1,000pt抽選へ進んでください。'
+        );
+    } else if (uniformResult === 'already_lost') {
+        setGachaStatus(
+            'SECOND CHANCE',
+            'セカンドチャンスから再開',
+            'ユニフォーム抽選は終了済みです。<br>ボタンを押して、1,000pt抽選に挑戦してください。'
         );
     } else {
         setGachaStatus(
             'SECOND CHANCE',
             'ユニフォーム抽選は惜しくも落選…',
-            'セカンドチャンスとして、1,000pt抽選へ進みます。'
+            'まだ終わりではありません。<br>ボタンを押して、セカンドチャンスの1,000pt抽選へ進んでください。'
         );
     }
 
-    shootBtn.innerText = 'セカンドチャンスへ';
-    await wait(1700);
+    shootBtn.disabled = false;
+    shootBtn.innerText = 'セカンドチャンスに挑戦！';
+}
 
-    resetBallAnimation();
-    ball.classList.add('charging');
-    setGachaStatus(
-        'POINT CHANCE',
-        '1,000pt抽選中...',
-        '既存のポイント抽選です。最大10名・当選確率50%。'
-    );
-    shootBtn.innerText = 'ポイント抽選中...';
-    await wait(1300);
-
+async function showPointFinalResult(result) {
     ball.classList.remove('charging');
     shootBtn.innerText = '結果発表！';
+    updateMemberAsFinished();
 
     if (result.prizeType === 'point') {
         setGachaStatus(
@@ -1094,72 +1192,106 @@ async function showFinalGachaResult(result) {
             <p style="color: #666; font-size: 14px;">ポイントは、毎月の付与日にまとめて加算させていただきます。</p>
         `;
         gachaModal.classList.add('show');
-    } else {
-        setGachaStatus(
-            'NO GOAL',
-            'ポイント抽選も今回は落選…',
-            result.pointResult === 'closed'
-                ? 'ポイント当選枠が上限に達していたため、今回は当選なしです。'
-                : 'ユニフォーム賞・ポイント賞ともに今回は落選でした。'
-        );
-        ball.classList.add('shoot-lose');
-        setTimeout(() => { ball.classList.add('shoot-lose-drop'); }, 2000);
-        await wait(3000);
-        gachaResult.innerHTML = `
-            <div class="result-text lose-text">NO GOAL...</div>
-            <div class="point-text" style="color: #666;">0 pt</div>
-            <p style="color: #666; font-size: 14px;">ユニフォーム賞・ポイント賞ともに今回は落選でした。<br>次回に期待！</p>
-        `;
-        gachaModal.classList.add('show');
+        return;
     }
+
+    setGachaStatus(
+        'NO GOAL',
+        'ポイント抽選も今回は落選…',
+        result.pointResult === 'closed'
+            ? 'ポイント当選枠が上限に達していたため、今回は当選なしです。'
+            : 'ユニフォーム賞・ポイント賞ともに今回は落選でした。'
+    );
+    ball.classList.add('shoot-lose');
+    setTimeout(() => { ball.classList.add('shoot-lose-drop'); }, 2000);
+    await wait(3000);
+    gachaResult.innerHTML = `
+        <div class="result-text lose-text">NO GOAL...</div>
+        <div class="point-text" style="color: #666;">0 pt</div>
+        <p style="color: #666; font-size: 14px;">ユニフォーム賞・ポイント賞ともに今回は落選でした。<br>次回に期待！</p>
+    `;
+    gachaModal.classList.add('show');
 }
 
-shootBtn.addEventListener('click', async () => {
+async function runUniformDraw() {
     shootBtn.disabled = true;
     shootBtn.innerText = 'ユニフォーム抽選中...';
     setGachaStatus(
         '1st CHALLENGE',
         'ユニフォーム抽選中...',
-        'まずはユニフォーム賞の抽選を行っています。'
+        'ユニフォーム賞の抽選を行っています。'
     );
     resetBallAnimation();
     ball.classList.add('charging');
 
-    let result;
+    try {
+        const accessToken = liff.getAccessToken();
+        const [apiRes] = await Promise.all([
+            post('playUniformGacha', { accessToken }),
+            wait(1600)
+        ]);
+
+        if (!apiRes || apiRes.ok !== true) {
+            alert(getGachaErrorMessage(apiRes?.error));
+            closeGachaAndReload();
+            return;
+        }
+
+        const result = normalizeUniformResult(apiRes);
+
+        if (result.isUniformWin) {
+            await showUniformWinResult();
+            return;
+        }
+
+        // ユニフォーム落選後は、自動でポイント抽選を実行せず、ユーザーの次のタップを待つ。
+        prepareSecondChance(result.uniformResult);
+    } catch (e) {
+        console.error('ユニフォーム抽選APIエラー', e);
+        alert('通信エラーが発生しました。');
+        closeGacha();
+    }
+}
+
+async function runPointDraw() {
+    shootBtn.disabled = true;
+    shootBtn.innerText = 'セカンドチャンス抽選中...';
+    setGachaStatus(
+        'POINT CHANCE',
+        '1,000pt抽選中...',
+        'セカンドチャンスの結果を判定しています。'
+    );
+    resetBallAnimation();
+    ball.classList.add('charging');
 
     try {
         const accessToken = liff.getAccessToken();
         const [apiRes] = await Promise.all([
-            post('playGacha', { accessToken }),
-            wait(1600)
+            post('playPointGacha', { accessToken }),
+            wait(1400)
         ]);
 
-        if (apiRes && apiRes.ok === false && apiRes.error === 'already_played') {
-            alert('すでにガチャに挑戦済みです。');
-            closeGachaAndReload();
-            return;
-        }
-
         if (!apiRes || apiRes.ok !== true) {
-            const errorMessageMap = {
-                not_eligible: 'ガチャの対象者ではありません。',
-                user_not_found: '会員情報が見つかりませんでした。',
-                line_auth_failed: 'LINE認証に失敗しました。'
-            };
-            alert(errorMessageMap[apiRes?.error] || 'ガチャ結果の取得に失敗しました。');
+            alert(getGachaErrorMessage(apiRes?.error));
             closeGachaAndReload();
             return;
         }
 
-        result = normalizeGachaApiResult(apiRes);
+        const result = normalizePointResult(apiRes);
+        await showPointFinalResult(result);
     } catch (e) {
-        console.error('ガチャAPIエラー', e);
+        console.error('ポイント抽選APIエラー', e);
         alert('通信エラーが発生しました。');
         closeGacha();
+    }
+}
+
+shootBtn.addEventListener('click', async () => {
+    if (gachaPhase === 'point') {
+        await runPointDraw();
         return;
     }
-
-    await showFinalGachaResult(result);
+    await runUniformDraw();
 });
 
 // 初期化実行
