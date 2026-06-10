@@ -926,7 +926,7 @@ shootBtn.addEventListener('click', async () => {
     shootBtn.innerText = '運命の判定...';
     ball.classList.add('charging');
 
-    let isWin = false;
+    let prizeType = 'none';
 
     try {
         const accessToken = liff.getAccessToken();
@@ -941,8 +941,19 @@ shootBtn.addEventListener('click', async () => {
             return;
         }
 
-        if (apiRes && apiRes.ok && apiRes.isWin) {
-            isWin = true;
+        if (!apiRes || apiRes.ok !== true) {
+            alert('ガチャ結果の取得に失敗しました。');
+            closeGachaAndReload();
+            return;
+        }
+
+        // API側の prizeType を優先。古いレスポンスにも一応対応。
+        if (apiRes.prizeType) {
+            prizeType = apiRes.prizeType;
+        } else if (apiRes.isUniformWin) {
+            prizeType = 'uniform';
+        } else if (apiRes.isPointWin || apiRes.isWin) {
+            prizeType = 'point';
         }
 
     } catch (e) {
@@ -955,7 +966,18 @@ shootBtn.addEventListener('click', async () => {
     ball.classList.remove('charging');
     shootBtn.innerText = 'シュート！！';
 
-    if (isWin) {
+    if (prizeType === 'uniform') {
+        ball.classList.add('shoot-win');
+        setTimeout(() => { if (goal) goal.classList.add('shake'); }, 1800);
+        setTimeout(() => {
+            gachaResult.innerHTML = `
+                <div class="result-text win-text">SPECIAL GOAL!!</div>
+                <div class="point-text">ユニフォーム当選</div>
+                <p style="color: #666; font-size: 14px;">おめでとうございます！<br>ユニフォーム賞に当選しました。</p>
+            `;
+            gachaModal.classList.add('show');
+        }, 2500);
+    } else if (prizeType === 'point') {
         ball.classList.add('shoot-win');
         setTimeout(() => { if (goal) goal.classList.add('shake'); }, 1800);
         setTimeout(() => {
