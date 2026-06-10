@@ -244,6 +244,45 @@
     .result-text { font-size: 32px; font-weight: bold; margin-bottom: 10px; }
     .win-text { color: #dc2626; } .lose-text { color: #4b5563; }
     .point-text { font-size: 24px; color: #d97706; font-weight: bold; margin-bottom: 20px; }
+
+
+    /* ===== Gacha step status ===== */
+    .gacha-status {
+        position: relative;
+        z-index: 20;
+        width: calc(100% - 40px);
+        max-width: 360px;
+        margin: 4px auto 0;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: rgba(0, 0, 0, 0.62);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        color: #fff;
+        text-align: center;
+        box-sizing: border-box;
+        backdrop-filter: blur(6px);
+        box-shadow: 0 10px 30px rgba(0,0,0,.28);
+    }
+    .gacha-status-step {
+        font-size: 12px;
+        line-height: 1;
+        font-weight: 900;
+        letter-spacing: .14em;
+        color: #fde68a;
+        margin-bottom: 7px;
+    }
+    .gacha-status-main {
+        font-size: 19px;
+        font-weight: 900;
+        line-height: 1.35;
+        text-shadow: 0 2px 12px rgba(0,0,0,.45);
+    }
+    .gacha-status-sub {
+        margin-top: 7px;
+        font-size: 12px;
+        line-height: 1.6;
+        color: rgba(255,255,255,.88);
+    }
   </style>
 </head>
 <body>
@@ -320,6 +359,11 @@
       <div class="gacha-header">
           <button class="gacha-close" onclick="closeGacha()">✕ 閉じる</button>
       </div>
+      <div class="gacha-status" id="gachaStatus">
+          <div class="gacha-status-step" id="gachaStatusStep">1st CHALLENGE</div>
+          <div class="gacha-status-main" id="gachaStatusMain">まずはユニフォーム抽選</div>
+          <div class="gacha-status-sub" id="gachaStatusSub">当選した場合は、ポイント抽選を行わず終了します。</div>
+      </div>
       <div class="pk-area">
           <!--<div class="goal" id="goal"></div>-->
           <div class="ball" id="ball"></div>
@@ -366,13 +410,33 @@ function showOnly(viewId) {
 async function post(action, payload = {}, retries = 1) {
   try {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 10000); 
-    const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...payload }), signal: controller.signal });
+    const id = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...payload }),
+      signal: controller.signal
+    });
     clearTimeout(id);
-    if (!res.ok) throw new Error(`サーバーエラー: ${res.status}`);
-    return await res.json();
+
+    let data = {};
+    try {
+      data = await res.json();
+    } catch (_) {
+      data = {};
+    }
+
+    // Lambdaが { ok:false, error:"..." } を返した場合、画面側で内容を見て分岐できるようにする。
+    if (!res.ok) {
+      if (data && data.ok === false) return data;
+      throw new Error(`サーバーエラー: ${res.status}`);
+    }
+
+    return data;
   } catch (err) {
-    if (retries > 0) return post(action, payload, retries - 1); 
+    if (retries > 0 && (err.name === 'AbortError' || err.message === 'Failed to fetch')) {
+      return post(action, payload, retries - 1);
+    }
     throw err;
   }
 }
@@ -903,13 +967,41 @@ const goal = document.getElementById('goal');
 const shootBtn = document.getElementById('shootBtn');
 const gachaModal = document.getElementById('gachaModal');
 const gachaResult = document.getElementById('gachaResult');
+const gachaStatus = document.getElementById('gachaStatus');
+const gachaStatusStep = document.getElementById('gachaStatusStep');
+const gachaStatusMain = document.getElementById('gachaStatusMain');
+const gachaStatusSub = document.getElementById('gachaStatusSub');
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function setGachaStatus(step, main, sub = '') {
+    if (gachaStatus) gachaStatus.style.display = 'block';
+    if (gachaStatusStep) gachaStatusStep.textContent = step;
+    if (gachaStatusMain) gachaStatusMain.textContent = main;
+    if (gachaStatusSub) gachaStatusSub.innerHTML = sub;
+}
+
+function resetBallAnimation() {
+    if (!ball) return;
+    ball.className = 'ball';
+    // 同じアニメーションを連続で発火できるように再描画を挟む
+    void ball.offsetWidth;
+}
 
 function openGacha() {
     showOnly('gachaView');
-    ball.className = 'ball'; 
+    resetBallAnimation();
     gachaModal.classList.remove('show');
+    gachaResult.innerHTML = '';
+    setGachaStatus(
+        '1st CHALLENGE',
+        'まずはユニフォーム抽選',
+        '当選した場合は、ポイント抽選を行わず終了します。'
+    );
     shootBtn.disabled = false;
-    shootBtn.innerText = 'シュート！';
+    shootBtn.innerText = 'ユニフォーム抽選スタート！';
 }
 
 function closeGacha() {
@@ -921,18 +1013,125 @@ function closeGachaAndReload() {
     init(); 
 }
 
+function normalizeGachaApiResult(apiRes) {
+    const prizeType = apiRes?.prizeType
+        || (apiRes?.isUniformWin ? 'uniform' : (apiRes?.isPointWin || apiRes?.isWin ? 'point' : 'none'));
+
+    return {
+        prizeType,
+        uniformResult: apiRes?.uniformResult || (apiRes?.isUniformWin ? 'win' : 'lose'),
+        pointResult: apiRes?.pointResult || (apiRes?.isPointWin || apiRes?.isWin ? 'win' : (prizeType === 'uniform' ? 'skipped' : 'lose')),
+        didUniformDraw: apiRes?.didUniformDraw !== false,
+        didPointDraw: apiRes?.didPointDraw === true || (prizeType !== 'uniform'),
+    };
+}
+
+async function showFinalGachaResult(result) {
+    ball.classList.remove('charging');
+    shootBtn.innerText = '結果発表！';
+
+    if (result.prizeType === 'uniform') {
+        setGachaStatus(
+            'SPECIAL GOAL',
+            'ユニフォーム抽選に当選！',
+            'ポイント抽選は行わず、ユニフォーム賞で確定です。'
+        );
+        ball.classList.add('shoot-win');
+        setTimeout(() => { if (goal) goal.classList.add('shake'); }, 1800);
+        await wait(2500);
+        gachaResult.innerHTML = `
+            <div class="result-text win-text">SPECIAL GOAL!!</div>
+            <div class="point-text">ユニフォーム当選</div>
+            <p style="color: #666; font-size: 14px;">おめでとうございます！<br>ユニフォーム賞に当選しました。</p>
+        `;
+        gachaModal.classList.add('show');
+        return;
+    }
+
+    // ユニフォームに当たらなかった場合だけ、画面上でセカンドチャンスに進む演出を入れる。
+    if (result.uniformResult === 'closed') {
+        setGachaStatus(
+            'SECOND CHANCE',
+            'ユニフォーム賞は当選枠に達しています',
+            'セカンドチャンスとして、1,000pt抽選へ進みます。'
+        );
+    } else {
+        setGachaStatus(
+            'SECOND CHANCE',
+            'ユニフォーム抽選は惜しくも落選…',
+            'セカンドチャンスとして、1,000pt抽選へ進みます。'
+        );
+    }
+
+    shootBtn.innerText = 'セカンドチャンスへ';
+    await wait(1700);
+
+    resetBallAnimation();
+    ball.classList.add('charging');
+    setGachaStatus(
+        'POINT CHANCE',
+        '1,000pt抽選中...',
+        '既存のポイント抽選です。最大10名・当選確率50%。'
+    );
+    shootBtn.innerText = 'ポイント抽選中...';
+    await wait(1300);
+
+    ball.classList.remove('charging');
+    shootBtn.innerText = '結果発表！';
+
+    if (result.prizeType === 'point') {
+        setGachaStatus(
+            'GOAL',
+            'ポイント抽選に当選！',
+            '1,000pt獲得です。'
+        );
+        ball.classList.add('shoot-win');
+        setTimeout(() => { if (goal) goal.classList.add('shake'); }, 1800);
+        await wait(2500);
+        gachaResult.innerHTML = `
+            <div class="result-text win-text">GOAL!!</div>
+            <div class="point-text">1,000 pt 獲得</div>
+            <p style="color: #666; font-size: 14px;">ポイントは、毎月の付与日にまとめて加算させていただきます。</p>
+        `;
+        gachaModal.classList.add('show');
+    } else {
+        setGachaStatus(
+            'NO GOAL',
+            'ポイント抽選も今回は落選…',
+            result.pointResult === 'closed'
+                ? 'ポイント当選枠が上限に達していたため、今回は当選なしです。'
+                : 'ユニフォーム賞・ポイント賞ともに今回は落選でした。'
+        );
+        ball.classList.add('shoot-lose');
+        setTimeout(() => { ball.classList.add('shoot-lose-drop'); }, 2000);
+        await wait(3000);
+        gachaResult.innerHTML = `
+            <div class="result-text lose-text">NO GOAL...</div>
+            <div class="point-text" style="color: #666;">0 pt</div>
+            <p style="color: #666; font-size: 14px;">ユニフォーム賞・ポイント賞ともに今回は落選でした。<br>次回に期待！</p>
+        `;
+        gachaModal.classList.add('show');
+    }
+}
+
 shootBtn.addEventListener('click', async () => {
     shootBtn.disabled = true;
-    shootBtn.innerText = '運命の判定...';
+    shootBtn.innerText = 'ユニフォーム抽選中...';
+    setGachaStatus(
+        '1st CHALLENGE',
+        'ユニフォーム抽選中...',
+        'まずはユニフォーム賞の抽選を行っています。'
+    );
+    resetBallAnimation();
     ball.classList.add('charging');
 
-    let prizeType = 'none';
+    let result;
 
     try {
         const accessToken = liff.getAccessToken();
         const [apiRes] = await Promise.all([
-            post('playGacha', { accessToken }), 
-            new Promise(resolve => setTimeout(resolve, 2000))
+            post('playGacha', { accessToken }),
+            wait(1600)
         ]);
 
         if (apiRes && apiRes.ok === false && apiRes.error === 'already_played') {
@@ -942,64 +1141,25 @@ shootBtn.addEventListener('click', async () => {
         }
 
         if (!apiRes || apiRes.ok !== true) {
-            alert('ガチャ結果の取得に失敗しました。');
+            const errorMessageMap = {
+                not_eligible: 'ガチャの対象者ではありません。',
+                user_not_found: '会員情報が見つかりませんでした。',
+                line_auth_failed: 'LINE認証に失敗しました。'
+            };
+            alert(errorMessageMap[apiRes?.error] || 'ガチャ結果の取得に失敗しました。');
             closeGachaAndReload();
             return;
         }
 
-        // API側の prizeType を優先。古いレスポンスにも一応対応。
-        if (apiRes.prizeType) {
-            prizeType = apiRes.prizeType;
-        } else if (apiRes.isUniformWin) {
-            prizeType = 'uniform';
-        } else if (apiRes.isPointWin || apiRes.isWin) {
-            prizeType = 'point';
-        }
-
+        result = normalizeGachaApiResult(apiRes);
     } catch (e) {
-        console.error("ガチャAPIエラー", e);
-        alert("通信エラーが発生しました。");
+        console.error('ガチャAPIエラー', e);
+        alert('通信エラーが発生しました。');
         closeGacha();
         return;
     }
 
-    ball.classList.remove('charging');
-    shootBtn.innerText = 'シュート！！';
-
-    if (prizeType === 'uniform') {
-        ball.classList.add('shoot-win');
-        setTimeout(() => { if (goal) goal.classList.add('shake'); }, 1800);
-        setTimeout(() => {
-            gachaResult.innerHTML = `
-                <div class="result-text win-text">SPECIAL GOAL!!</div>
-                <div class="point-text">ユニフォーム当選</div>
-                <p style="color: #666; font-size: 14px;">おめでとうございます！<br>ユニフォーム賞に当選しました。</p>
-            `;
-            gachaModal.classList.add('show');
-        }, 2500);
-    } else if (prizeType === 'point') {
-        ball.classList.add('shoot-win');
-        setTimeout(() => { if (goal) goal.classList.add('shake'); }, 1800);
-        setTimeout(() => {
-            gachaResult.innerHTML = `
-                <div class="result-text win-text">GOAL!!</div>
-                <div class="point-text">1,000 pt 獲得</div>
-                <p style="color: #666; font-size: 14px;">ポイントは、毎月の付与日にまとめて加算させていただきます。</p>
-            `;
-            gachaModal.classList.add('show');
-        }, 2500);
-    } else {
-        ball.classList.add('shoot-lose');
-        setTimeout(() => { ball.classList.add('shoot-lose-drop'); }, 2000);
-        setTimeout(() => {
-            gachaResult.innerHTML = `
-                <div class="result-text lose-text">MISS...</div>
-                <div class="point-text" style="color: #666;">0 pt</div>
-                <p style="color: #666; font-size: 14px;">ポストに嫌われました。<br>次回に期待！</p>
-            `;
-            gachaModal.classList.add('show');
-        }, 3000);
-    }
+    await showFinalGachaResult(result);
 });
 
 // 初期化実行
