@@ -361,7 +361,7 @@
       </div>
       <div class="gacha-status" id="gachaStatus">
           <div class="gacha-status-step" id="gachaStatusStep">1st CHALLENGE</div>
-          <div class="gacha-status-main" id="gachaStatusMain">ユニフォーム抽選</div>
+          <div class="gacha-status-main" id="gachaStatusMain">まずはユニフォーム抽選</div>
           <div class="gacha-status-sub" id="gachaStatusSub">当選した場合は、ポイント抽選を行わず終了します。</div>
       </div>
       <div class="pk-area">
@@ -1065,7 +1065,7 @@ function openGacha() {
     gachaPhase = 'uniform';
     setGachaStatus(
         '1st CHALLENGE',
-        'ユニフォーム抽選',
+        'まずはユニフォーム抽選',
         '当選した場合は、ポイント抽選を行わず終了します。'
     );
     shootBtn.disabled = false;
@@ -1096,9 +1096,14 @@ function getGachaErrorMessage(error) {
 }
 
 function normalizeUniformResult(apiRes) {
+    const rawUniformResult = apiRes?.uniformResult || (apiRes?.isUniformWin ? 'win' : 'lose');
+    // ユニフォーム枠が埋まっている場合も、画面上は通常の落選として扱う。
+    // 「誰かが当選済みだから外れ」と見せず、全員がユニフォーム抽選に挑戦した体験にする。
+    const uniformResult = rawUniformResult === 'closed' ? 'lose' : rawUniformResult;
+
     return {
         prizeType: apiRes?.prizeType || (apiRes?.isUniformWin ? 'uniform' : 'pending_point'),
-        uniformResult: apiRes?.uniformResult || (apiRes?.isUniformWin ? 'win' : 'lose'),
+        uniformResult,
         pointResult: apiRes?.pointResult || 'waiting',
         isUniformWin: apiRes?.isUniformWin === true || apiRes?.prizeType === 'uniform',
         isPointPending: apiRes?.isPointPending === true
@@ -1148,13 +1153,7 @@ function prepareSecondChance(uniformResult) {
     updateMemberAsPointPending();
     gachaPhase = 'point';
 
-    if (uniformResult === 'closed') {
-        setGachaStatus(
-            'SECOND CHANCE',
-            'ユニフォーム賞は当選枠に達しています',
-            'まだ終わりではありません。<br>ボタンを押して、セカンドチャンスの1,000pt抽選へ進んでください。'
-        );
-    } else if (uniformResult === 'already_lost') {
+    if (uniformResult === 'already_lost') {
         setGachaStatus(
             'SECOND CHANCE',
             'セカンドチャンスから再開',
@@ -1170,6 +1169,24 @@ function prepareSecondChance(uniformResult) {
 
     shootBtn.disabled = false;
     shootBtn.innerText = 'セカンドチャンスに挑戦！';
+}
+
+async function showUniformLoseThenPrepareSecondChance(uniformResult) {
+    ball.classList.remove('charging');
+    shootBtn.innerText = 'ユニフォーム抽選結果...';
+
+    setGachaStatus(
+        'NO GOAL',
+        'ユニフォーム抽選は惜しくも落選…',
+        'まだセカンドチャンスがあります。<br>このあとボタンを押して、1,000pt抽選に挑戦できます。'
+    );
+
+    // ポイント抽選の外れ時と同じく、ゴール外へ外れるアニメーションを必ず実行する。
+    ball.classList.add('shoot-lose');
+    setTimeout(() => { ball.classList.add('shoot-lose-drop'); }, 2000);
+    await wait(3000);
+
+    prepareSecondChance(uniformResult);
 }
 
 async function showPointFinalResult(result) {
@@ -1219,7 +1236,7 @@ async function runUniformDraw() {
     setGachaStatus(
         '1st CHALLENGE',
         'ユニフォーム抽選中...',
-        'ユニフォーム賞の抽選を行っています。'
+        'まずはユニフォーム賞の抽選を行っています。'
     );
     resetBallAnimation();
     ball.classList.add('charging');
@@ -1244,8 +1261,8 @@ async function runUniformDraw() {
             return;
         }
 
-        // ユニフォーム落選後は、自動でポイント抽選を実行せず、ユーザーの次のタップを待つ。
-        prepareSecondChance(result.uniformResult);
+        // ユニフォーム落選後も外れアニメーションを見せてから、ユーザーの次のタップを待つ。
+        await showUniformLoseThenPrepareSecondChance(result.uniformResult);
     } catch (e) {
         console.error('ユニフォーム抽選APIエラー', e);
         alert('通信エラーが発生しました。');
